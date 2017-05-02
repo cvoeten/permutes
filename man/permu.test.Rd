@@ -7,7 +7,7 @@
 permu.test(formula, data, parallel = FALSE)
 }
 \arguments{
-\item{formula}{A formula of the following form: outcome ~ predictors | timepoint variables. Multivariate outcomes (e.g. 32 EEG electrodes) are supported; use `cbind(Fp1,Fp2,etc) ~ predictors | timepoint'.}
+\item{formula}{A formula of the following form: `outcome ~ predictors | timepoint variables'. Multivariate outcomes (e.g. 32 EEG electrodes) are supported; use `cbind(Fp1,Fp2,etc) ~ predictors | timepoint'.}
 
 \item{data}{The dataset referencing these predictors.}
 

@@ -2,7 +2,10 @@ Package: permutes
 Title: Permutation Tests for Time Series Data
 Version: 0.1
 Authors@R: person("Cesko", "Voeten", email = "c.c.voeten@hum.leidenuniv.nl", role = c("aut", "cre"))
-Description: The permutes package helps you determine the analysis window to use when analyzing densely-sampled time-series data, such as EEG data. The package uses permutation tests to identify the timepoints where significance of an effects begins and ends, and plots the resulting p-values in a heatmap for your future perusal.
+Description: The permutes package helps you determine the analysis window to use when 
+    analyzing densely-sampled time-series data, such as EEG data. The package uses permutation
+    tests to identify the timepoints where significance of an effects begins and ends, and plots the
+    resulting p-values in a heatmap for your future perusal.
 Depends:
     lmPerm, ggplot2, viridis
 License: 2-clause BSD
