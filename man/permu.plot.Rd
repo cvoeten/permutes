@@ -2,7 +2,7 @@
 % Please edit documentation in R/permutes.R
 \name{permu.plot}
 \alias{permu.plot}
-\title{Create a heatmap of the results of permutation testing}
+\title{Create a heatmap of the results of permutation testing.}
 \usage{
 permu.plot(data, breaks = NULL)
 }
@@ -15,5 +15,5 @@ permu.plot(data, breaks = NULL)
 A ggplot2 object containing a heatmap of p-values.
 }
 \description{
-Create a heatmap of the results of permutation testing
+Create a heatmap of the results of permutation testing.
 }

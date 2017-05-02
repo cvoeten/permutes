@@ -2,3 +2,7 @@
 
 export(permu.plot)
 export(permu.test)
+import(ggplot2)
+import(lmPerm)
+import(plyr)
+import(viridis)

@@ -3,6 +3,7 @@
 #' @param data The dataset referencing these predictors.
 #' @param parallel Whether to parallelize the permutation testing using plyr's `parallel' option. Needs some additional set-up; see the plyr documentation.
 #' @return A dataframe of p-values.
+#' @import plyr lmPerm
 #' @export
 permu.test <- function (formula,data,parallel=FALSE) {
 	if (formula[[1]] != '~') stop("Invalid formula (first operator is not '~')")
@@ -26,10 +27,11 @@ permu.test <- function (formula,data,parallel=FALSE) {
 	ret[ret$factor != 'Residuals',]
 }
 
-#' Create a heatmap of the results of permutation testing
+#' Create a heatmap of the results of permutation testing.
 #' @param data Output of permu.test. You may want to subset it if you want to simulate zooming in.
 #' @param breaks The granularity of the labels of the x axis. Pass `unique(data[,2])' to get a tick for every timepoint. Combine this trick with subsetting of your dataset, and perhaps averaging over all your dependent variables, to `zoom in' on your data to help you determine precisely where significance begins and stops to occur.
 #' @return A ggplot2 object containing a heatmap of p-values.
+#' @import ggplot2 viridis
 #' @export
 permu.plot <- function (data,breaks=NULL) {
 	p <- ggplot(data=data,aes(x=data[,2],y=data[,1]))
