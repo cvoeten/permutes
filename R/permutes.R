@@ -6,22 +6,28 @@
 #' @import plyr lmPerm
 #' @export
 permu.test <- function (formula,data,parallel=FALSE) {
+	errfun <- function (e) {
+		warning(e)
+		return(data.frame(timepoint=NA,factor=NA,p=NA))
+	}
 	if (formula[[1]] != '~') stop("Invalid formula (first operator is not '~')")
 	indep <- formula[[3]]
 	if (indep[[1]] != '|') stop("Invalid formula (the rightmost term should start with '|', followed by your timepoint variable)")
 	timepoint.var <- as.character(indep[[3]])
 	formula[[3]] <- indep[[2]]
-	timepoints <- data[,colnames(data) == timepoint.var]
+	timepoints <- data[,timepoint.var]
 	ret <- adply(unique(timepoints),1,function (t) {
 		cat(paste('Testing timepoint:',t))
-		test <- aovp(formula,data[timepoints == t,])
+		test <- tryCatch(aovp(formula,data[timepoints == t,]),error=errfun)
 		ldply(summary(test),function (res) {
+			if (ncol(res) != 5) return(errfun(paste0('Timepoint ',t,' did not have more observations than datapoints')))
 			factors <- rownames(res)
 			pvals <- res[[5]]
 			data.frame(timepoint=t,factor=factors,p=pvals,stringsAsFactors=F)
 		},.parallel=F,.id='measure')
 	},.parallel=parallel,.id=NULL)
-	colnames(ret)[2] <- timepoint.var
+	if (ncol(ret) < 4) ret <- cbind(as.character(formula[[2]]),ret,stringsAsFactors=F) #ldply will not have generated the first column if the outcome was univariate
+	colnames(ret)[1:2] <- c('measure',timepoint.var)
 	ret$measure <- sub('^ Response ','',ret$measure)
 	ret$factor <- sub(' +$','',ret$factor)
 	ret[ret$factor != 'Residuals',]
