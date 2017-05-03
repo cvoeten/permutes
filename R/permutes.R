@@ -43,7 +43,7 @@ permu.plot <- function (data,breaks=NULL) {
 	p <- ggplot(data=data,aes(x=data[,2],y=data[,1]))
 	p <- p + geom_tile(aes(fill=p)) + scale_fill_viridis(option='plasma',direction=-1)
 	p <- p + if (is.null(breaks)) scale_x_continuous(expand=c(0,0)) else scale_x_continuous(expand=c(0,0),breaks=breaks)
-	p <- p + facet_wrap(~factor,ncol=1)
+	p <- p + scale_y_continuous(expand=c(0,0)) + facet_wrap(~factor,ncol=1)
 	p <- p + xlab(colnames(data)[2]) + ylab(colnames(data)[1])
 	return(p)
 }
