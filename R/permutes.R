@@ -16,7 +16,7 @@ permu.test <- function (formula,data,parallel=FALSE) {
 	timepoint.var <- as.character(indep[[3]])
 	formula[[3]] <- indep[[2]]
 	timepoints <- data[,timepoint.var]
-	ret <- adply(unique(timepoints),1,function (t) {
+	ret <- adply(sort(unique(timepoints)),1,function (t) {
 		cat(paste('Testing timepoint:',t))
 		test <- tryCatch(aovp(formula,data[timepoints == t,]),error=errfun)
 		if (all(class(test) == 'data.frame')) return(test) #permutation test failed with an error
