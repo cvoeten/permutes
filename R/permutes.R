@@ -31,7 +31,9 @@ permu.test <- function (formula,data,parallel=FALSE) {
 	colnames(ret)[1:2] <- c('measure',timepoint.var)
 	ret$measure <- sub('^ Response ','',ret$measure)
 	ret$factor <- sub(' +$','',ret$factor)
-	ret[ret$factor != 'Residuals',]
+	ret <- ret[ret$factor != 'Residuals',]
+	class(ret) <- 'permutes'
+	ret
 }
 
 #' Create a heatmap of the results of permutation testing.
@@ -40,11 +42,12 @@ permu.test <- function (formula,data,parallel=FALSE) {
 #' @return A ggplot2 object containing a heatmap of p-values.
 #' @import ggplot2 viridis
 #' @export
-permu.plot <- function (data,breaks=NULL) {
-	p <- ggplot(data=data,aes(x=data[,2],y=data[,1]))
+plot.permutes <- function (data,breaks=NULL) {
+	p <- ggplot(data=data,aes_string(x=colnames(data)[2],y=colnames(data)[1]))
 	p <- p + geom_tile(aes(fill=p)) + scale_fill_viridis(option='plasma',direction=-1)
 	p <- p + if (is.null(breaks)) scale_x_continuous(expand=c(0,0)) else scale_x_continuous(expand=c(0,0),breaks=breaks)
-	p <- p + scale_y_continuous(expand=c(0,0)) + facet_wrap(~factor,ncol=1)
+	if (length(unique(data$factor)) == 1) p <- p + scale_y_continuous(expand=c(0,0))
+	else p <- p + facet_wrap(~factor,ncol=1)
 	p <- p + xlab(colnames(data)[2]) + ylab(colnames(data)[1])
 	return(p)
 }
