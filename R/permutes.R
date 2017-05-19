@@ -21,7 +21,7 @@ permu.test <- function (formula,data,parallel=FALSE) {
 		test <- tryCatch(aovp(formula,data[timepoints == t,]),error=errfun)
 		if (all(class(test) == 'data.frame')) return(test) #permutation test failed with an error
 		ldply(summary(test),function (res) {
-			if (ncol(res) != 5) return(errfun(paste0('Timepoint ',t,' did not have more observations than datapoints')))
+			if (ncol(res) != 5) return(errfun(paste0('Timepoint ',t,' did not have more observations than predictors; the ANOVA is unidentifiable.')))
 			factors <- rownames(res)
 			pvals <- res[[5]]
 			data.frame(timepoint=t,factor=factors,p=pvals,stringsAsFactors=F)
