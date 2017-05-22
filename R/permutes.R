@@ -21,7 +21,7 @@ permu.test <- function (formula,data,parallel=FALSE) {
 		test <- tryCatch(aovp(formula,data[timepoints == t,]),error=errfun)
 		if (all(class(test) == 'data.frame')) return(test) #permutation test failed with an error
 		ldply(summary(test),function (res) {
-			if (ncol(res) != 5) return(errfun(paste0('Timepoint ',t,' did not have more observations than predictors; the ANOVA is unidentifiable.')))
+			if (ncol(res) != 5) return(errfun(paste0('Timepoint ',t,' did not have more observations than predictors; the ANOVA is unidentifiable')))
 			factors <- rownames(res)
 			pvals <- res[[5]]
 			data.frame(timepoint=t,factor=factors,p=pvals,stringsAsFactors=F)
@@ -32,7 +32,7 @@ permu.test <- function (formula,data,parallel=FALSE) {
 	ret$measure <- sub('^ Response ','',ret$measure)
 	ret$factor <- sub(' +$','',ret$factor)
 	ret <- ret[ret$factor != 'Residuals',]
-	class(ret) <- 'permutes'
+	class(ret) <- c('permutes','data.frame')
 	ret
 }
 
@@ -42,8 +42,17 @@ permu.test <- function (formula,data,parallel=FALSE) {
 #' @return A ggplot2 object containing a heatmap of p-values.
 #' @import ggplot2 viridis
 #' @export
-plot.permutes <- function (data,breaks=NULL) {
-	p <- ggplot(data=data,aes_string(x=colnames(data)[2],y=colnames(data)[1]))
+plot.permutes <- function (x,y=NULL,breaks=NULL) {
+	if (!is.null(y)) {
+		# User provided vectors instead of a dataframe
+		if ('data.frame' %in% class(x)) stop("Unable to understand 'y' argument if 'x' is not a vector")
+		p <- ggplot(aes(x=x,y=y))
+	} else {
+		# User provided a dataframe of permutation results
+		if (!'data.frame' %in% class(x)) stop("Error: 'x' is not a dataframe")
+		data <- x
+		p <- ggplot(data=data,aes_string(x=colnames(data)[2],y=colnames(data)[1]))
+	}
 	p <- p + geom_tile(aes(fill=p)) + scale_fill_viridis(option='plasma',direction=-1)
 	p <- p + if (is.null(breaks)) scale_x_continuous(expand=c(0,0)) else scale_x_continuous(expand=c(0,0),breaks=breaks)
 	if (length(unique(data$factor)) == 1) p <- p + scale_y_continuous(expand=c(0,0))
