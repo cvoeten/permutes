@@ -2,12 +2,13 @@
 #' @param formula A formula of the following form: `outcome ~ predictors | timepoint variables'. Multivariate outcomes (e.g. 32 EEG electrodes) are supported; use `cbind(Fp1,Fp2,etc) ~ predictors | timepoint'.
 #' @param data The dataset referencing these predictors.
 #' @param subset If specified, will only analyze the specified subset of the data.
-#' @param w2 If set to TRUE, will calculate effect sizes (omega squared) rather than p-values.
+#' @param w2 If set to TRUE, will calculate effect sizes (omega squared) rather than p-values. Note that the value will be clamped to zero if the calculated omega-squared statistic would be negative.
+#' @param w2.onlysig If w2 is TRUE, will discard (i.e. set to NA) effect sizes of non-significant parameters.
 #' @param parallel Whether to parallelize the permutation testing using plyr's `parallel' option. Needs some additional set-up; see the plyr documentation.
 #' @return A dataframe of p-values.
 #' @import plyr lmPerm
 #' @export
-permu.test <- function (formula,data,subset=NULL,w2=FALSE,parallel=FALSE) {
+permu.test <- function (formula,data,subset=NULL,w2=FALSE,w2.onlysig=FALSE,parallel=FALSE) {
 	errfun <- function (e) {
 		warning(e)
 		return(data.frame(timepoint=NA,factor=NA,p=NA))
@@ -38,7 +39,10 @@ permu.test <- function (formula,data,subset=NULL,w2=FALSE,parallel=FALSE) {
 				SSe <- SS[ nr]
 				MSe <- SSe/dfe
 				w2 <- (SSf - dff * MSe) / (sum(SS) + MSe)
-				pvals <- c(w2,NA)
+				w2 <- pmax(w2,0)
+				w2 <- c(w2,NA) #the residuals
+				if (w2.onlysig) w2[pvals >= .05] <- NA
+				pvals <- w2
 			}
 			data.frame(timepoint=t,factor=factors,p=pvals,stringsAsFactors=F)
 		},.parallel=F,.id='measure')
