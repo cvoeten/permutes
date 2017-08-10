@@ -1,11 +1,13 @@
 #' Permutation tests for time series data.
 #' @param formula A formula of the following form: `outcome ~ predictors | timepoint variables'. Multivariate outcomes (e.g. 32 EEG electrodes) are supported; use `cbind(Fp1,Fp2,etc) ~ predictors | timepoint'.
 #' @param data The dataset referencing these predictors.
+#' @param subset If specified, will only analyze the specified subset of the data.
+#' @param w2 If set to TRUE, will calculate effect sizes (omega squared) rather than p-values.
 #' @param parallel Whether to parallelize the permutation testing using plyr's `parallel' option. Needs some additional set-up; see the plyr documentation.
 #' @return A dataframe of p-values.
 #' @import plyr lmPerm
 #' @export
-permu.test <- function (formula,data,parallel=FALSE) {
+permu.test <- function (formula,data,subset=NULL,w2=FALSE,parallel=FALSE) {
 	errfun <- function (e) {
 		warning(e)
 		return(data.frame(timepoint=NA,factor=NA,p=NA))
@@ -15,8 +17,10 @@ permu.test <- function (formula,data,parallel=FALSE) {
 	if (indep[[1]] != '|') stop("Invalid formula (the rightmost term should start with '|', followed by your timepoint variable)")
 	timepoint.var <- as.character(indep[[3]])
 	formula[[3]] <- indep[[2]]
+	if (!is.null(subset)) data <- data[subset,]
 	timepoints <- data[,timepoint.var]
 	ret <- adply(sort(unique(timepoints)),1,function (t) {
+		library(lmPerm)
 		cat(paste('Testing timepoint:',t))
 		test <- tryCatch(aovp(formula,data[timepoints == t,]),error=errfun)
 		if (all(class(test) == 'data.frame')) return(test) #permutation test failed with an error
@@ -24,11 +28,23 @@ permu.test <- function (formula,data,parallel=FALSE) {
 			if (ncol(res) != 5) return(errfun(paste0('Timepoint ',t,' did not have more observations than predictors; the ANOVA is unidentifiable')))
 			factors <- rownames(res)
 			pvals <- res[[5]]
+			if (w2) {
+				df <- res[[1]]
+				SS <- res[[2]]
+				nr <- length(df)
+				dff <- df[-nr]
+				dfe <- df[ nr]
+				SSf <- SS[-nr]
+				SSe <- SS[ nr]
+				MSe <- SSe/dfe
+				w2 <- (SSf - dff * MSe) / (sum(SS) + MSe)
+				pvals <- c(w2,NA)
+			}
 			data.frame(timepoint=t,factor=factors,p=pvals,stringsAsFactors=F)
 		},.parallel=F,.id='measure')
 	},.parallel=parallel,.id=NULL)
 	if (ncol(ret) < 4) ret <- cbind(as.character(formula[[2]]),ret,stringsAsFactors=F) #ldply will not have generated the first column if the outcome was univariate
-	colnames(ret)[1:2] <- c('measure',timepoint.var)
+	colnames(ret) <- c('measure',timepoint.var,'factor',ifelse(w2,'w2','p'))
 	ret$measure <- sub('^ Response ','',ret$measure)
 	ret$factor <- sub(' +$','',ret$factor)
 	ret <- ret[ret$factor != 'Residuals',]
@@ -53,10 +69,10 @@ plot.permutes <- function (x,y=NULL,breaks=NULL) {
 		data <- x
 		p <- ggplot(data=data,aes_string(x=colnames(data)[2],y=colnames(data)[1]))
 	}
-	p <- p + geom_tile(aes(fill=p)) + scale_fill_viridis(option='plasma',direction=-1)
+	val.name <- colnames(data[4])
+	p <- p + geom_tile(aes_string(fill=val.name)) + scale_fill_viridis(option='plasma',direction=ifelse(val.name == 'p',-1,1))
 	p <- p + if (is.null(breaks)) scale_x_continuous(expand=c(0,0)) else scale_x_continuous(expand=c(0,0),breaks=breaks)
-	if (length(unique(data$factor)) == 1) p <- p + scale_y_continuous(expand=c(0,0))
-	else p <- p + facet_wrap(~factor,ncol=1)
+	p <- p + if (length(unique(data$factor)) == 1) scale_y_continuous(expand=c(0,0)) else facet_wrap(~factor,ncol=1)
 	p <- p + xlab(colnames(data)[2]) + ylab(colnames(data)[1])
 	return(p)
 }
