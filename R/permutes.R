@@ -73,10 +73,10 @@ plot.permutes <- function (x,y=NULL,breaks=NULL) {
 		data <- x
 		p <- ggplot(data=data,aes_string(x=colnames(data)[2],y=colnames(data)[1]))
 	}
-	val.name <- colnames(data[4])
+	val.name <- colnames(data)[4]
 	p <- p + geom_tile(aes_string(fill=val.name)) + scale_fill_viridis(option='plasma',direction=ifelse(val.name == 'p',-1,1))
 	p <- p + if (is.null(breaks)) scale_x_continuous(expand=c(0,0)) else scale_x_continuous(expand=c(0,0),breaks=breaks)
-	p <- p + if (length(unique(data$factor)) == 1) scale_y_continuous(expand=c(0,0)) else facet_wrap(~factor,ncol=1)
+	p <- p + if (length(unique(data$factor)) == 1) scale_y_discrete(expand=c(0,0)) else facet_wrap(~factor,ncol=1)
 	p <- p + xlab(colnames(data)[2]) + ylab(colnames(data)[1])
 	return(p)
 }
