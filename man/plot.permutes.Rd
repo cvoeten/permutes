@@ -4,9 +4,11 @@
 \alias{plot.permutes}
 \title{Create a heatmap of the results of permutation testing.}
 \usage{
-\method{plot}{permutes}(x, y = NULL, breaks = NULL)
+\method{plot}{permutes}(x, y = NULL, plot = c("p", "w2"), breaks = NULL)
 }
 \arguments{
+\item{plot}{Either 'p', to create a heatmap of the p-values, or 'w2' to use the effect size measure (omega squared) instead.}
+
 \item{breaks}{The granularity of the labels of the x axis. Pass `unique(data[,2])' to get a tick for every timepoint. Combine this trick with subsetting of your dataset, and perhaps averaging over all your dependent variables, to `zoom in' on your data to help you determine precisely where significance begins and stops to occur.}
 
 \item{data}{Output of permu.test. You may want to subset it if you want to simulate zooming in.}

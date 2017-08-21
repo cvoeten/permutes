@@ -4,8 +4,7 @@
 \alias{permu.test}
 \title{Permutation tests for time series data.}
 \usage{
-permu.test(formula, data, subset = NULL, w2 = FALSE, w2.onlysig = FALSE,
-  parallel = FALSE)
+permu.test(formula, data, subset = NULL, parallel = FALSE)
 }
 \arguments{
 \item{formula}{A formula of the following form: `outcome ~ predictors | timepoint variables'. Multivariate outcomes (e.g. 32 EEG electrodes) are supported; use `cbind(Fp1,Fp2,etc) ~ predictors | timepoint'.}
@@ -13,10 +12,6 @@ permu.test(formula, data, subset = NULL, w2 = FALSE, w2.onlysig = FALSE,
 \item{data}{The dataset referencing these predictors.}
 
 \item{subset}{If specified, will only analyze the specified subset of the data.}
-
-\item{w2}{If set to TRUE, will calculate effect sizes (omega squared) rather than p-values. Note that the value will be clamped to zero if the calculated omega-squared statistic would be negative.}
-
-\item{w2.onlysig}{If w2 is TRUE, will discard (i.e. set to NA) effect sizes of non-significant parameters.}
 
 \item{parallel}{Whether to parallelize the permutation testing using plyr's `parallel' option. Needs some additional set-up; see the plyr documentation.}
 }
