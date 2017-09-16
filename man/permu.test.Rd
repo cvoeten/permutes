@@ -4,7 +4,8 @@
 \alias{permu.test}
 \title{Permutation tests for time series data.}
 \usage{
-permu.test(formula, data, subset = NULL, parallel = FALSE)
+permu.test(formula, data, subset = NULL, parallel = FALSE,
+  progress = "text")
 }
 \arguments{
 \item{formula}{A formula of the following form: `outcome ~ predictors | timepoint variables'. Multivariate outcomes (e.g. 32 EEG electrodes) are supported; use `cbind(Fp1,Fp2,etc) ~ predictors | timepoint'.}
@@ -14,6 +15,8 @@ permu.test(formula, data, subset = NULL, parallel = FALSE)
 \item{subset}{If specified, will only analyze the specified subset of the data.}
 
 \item{parallel}{Whether to parallelize the permutation testing using plyr's `parallel' option. Needs some additional set-up; see the plyr documentation.}
+
+\item{progress}{A plyr `.progress' bar name, see the plyr documentation. Ignored if parallel=TRUE.}
 }
 \value{
 A dataframe of p-values.
