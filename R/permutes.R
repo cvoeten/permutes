@@ -3,10 +3,11 @@
 #' @param data The dataset referencing these predictors.
 #' @param subset If specified, will only analyze the specified subset of the data.
 #' @param parallel Whether to parallelize the permutation testing using plyr's `parallel' option. Needs some additional set-up; see the plyr documentation.
+#' @param progress A plyr `.progress' bar name, see the plyr documentation. Ignored if parallel=TRUE.
 #' @return A dataframe of p-values.
 #' @import plyr lmPerm
 #' @export
-permu.test <- function (formula,data,subset=NULL,parallel=FALSE) {
+permu.test <- function (formula,data,subset=NULL,parallel=FALSE,progress='text') {
 	errfun <- function (e) {
 		warning(e)
 		return(data.frame(timepoint=NA,factor=NA,p=NA,w2=NA))
@@ -20,7 +21,6 @@ permu.test <- function (formula,data,subset=NULL,parallel=FALSE) {
 	timepoints <- data[,timepoint.var]
 	ret <- adply(sort(unique(timepoints)),1,function (t) {
 		library(lmPerm)
-		cat(paste('Testing timepoint:',t))
 		test <- tryCatch(aovp(formula,data[timepoints == t,]),error=errfun)
 		if (all(class(test) == 'data.frame')) return(test) #permutation test failed with an error
 		ldply(summary(test),function (res) {
@@ -39,8 +39,8 @@ permu.test <- function (formula,data,subset=NULL,parallel=FALSE) {
 			w2 <- pmax(w2,0)
 			w2 <- c(w2,NA) #the residuals
 			data.frame(timepoint=t,factor=factors,p=pvals,w2=w2,stringsAsFactors=F)
-		},.parallel=F,.id='measure')
-	},.parallel=parallel,.id=NULL)
+		},.id='measure')
+	},.id=NULL,.parallel=parallel,.progress=ifelse(parallel,progress,NULL))
 	if (ncol(ret) < 4) ret <- cbind(as.character(formula[[2]]),ret,stringsAsFactors=F) #ldply will not have generated the first column if the outcome was univariate
 	colnames(ret)[2] <- timepoint.var
 	ret$measure <- sub('^ Response ','',ret$measure)
