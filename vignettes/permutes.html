@@ -345,7 +345,7 @@ fun &lt;- function (C) {
     # Figure out the autocorrelation in the residuals. We cannot use acf(resid(m)),
     # because that will not take into account event boundaries (the whole dataset will be
     # treated as a single huge EEG signal)
-    AR.start &lt;- data$time == data$time
+    AR.start &lt;- data$time == min(data$time)
     res &lt;- resid(model)
     bins &lt;- findInterval(res,which(AR.start))
     res.binned &lt;- split(res,bins)
