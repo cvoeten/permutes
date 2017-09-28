@@ -219,13 +219,11 @@ fun <- function (C) {
 	# treated as a single huge EEG signal)
 	AR.start <- data$time == min(data$time)
 	res <- resid(model)
-	bins <- findInterval(res,which(AR.start))
+	bins <- findInterval(1:length(res),which(AR.start))
 	res.binned <- split(res,bins)
 	rhos <- sapply(res.binned,function (x) acf(x,plot=FALSE)$acf[2])
 
-	m.corrected <- bam(form,data=data,method='REML',cluster=cl,
-		AR.start=AR.start,rho=mean(rhos))
-	list(model.ac=model,model.corrected=m.corrected)
+	bam(form,data=data,method='REML',cluster=cl,AR.start=AR.start,rho=mean(rhos))
 }
 models <- parLapply(cl,pairs,fun)
 ```
@@ -245,7 +243,7 @@ The results of the two (corrected) fits -- which are not distributed along with 
 ```{r DONTRUNTHIS2,eval=F}
 for (i in 1:2) {
 	cat('\n---',pairs[[i]],'---\n')
-	print(summary(models[[i]]$model.corrected))
+	print(summary(models[[i]]))
 }
 ```
 ```{r modelresults,echo=F}

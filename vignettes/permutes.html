@@ -347,13 +347,11 @@ fun &lt;- function (C) {
     # treated as a single huge EEG signal)
     AR.start &lt;- data$time == min(data$time)
     res &lt;- resid(model)
-    bins &lt;- findInterval(res,which(AR.start))
+    bins &lt;- findInterval(1:length(res),which(AR.start))
     res.binned &lt;- split(res,bins)
     rhos &lt;- sapply(res.binned,function (x) acf(x,plot=FALSE)$acf[2])
 
-    m.corrected &lt;- bam(form,data=data,method='REML',cluster=cl,
-        AR.start=AR.start,rho=mean(rhos))
-    list(model.ac=model,model.corrected=m.corrected)
+    bam(form,data=data,method='REML',cluster=cl,AR.start=AR.start,rho=mean(rhos))
 }
 models &lt;- parLapply(cl,pairs,fun)</code></pre>
 <p>A few bits of this code require some explanation. First, we make a list of data combinations that are of interest to us; it is by this list that we subset the data into our two comparisons. This is not the most straightforward way to segment the data into our two bins of interest, but this is how <span class="citation">Jager (in prep.)</span> formatted her data. Then, for each of our two comparisons (which will be run in parallel), we create an eight-node subcluster for use by <code>mgcv</code>, subset our data, and then formulate and fit our model. We pass <code>method='REML'</code> to our call to <code>bam</code> instead of using the default, <code>fREML</code>, because <a href="https://stackoverflow.com/questions/40788972/why-is-bam-from-mgcv-slow-for-some-data">fREML can be unreliable at times</a>.</p>
@@ -364,7 +362,7 @@ models &lt;- parLapply(cl,pairs,fun)</code></pre>
 <p>The results of the two (corrected) fits – which are not distributed along with the package due to the large size of the <code>models</code> object (the <code>.RData</code> file is 2GiB in size) – are shown below:</p>
 <pre class="r"><code>for (i in 1:2) {
     cat('\n---',pairs[[i]],'---\n')
-    print(summary(models[[i]]$model.corrected))
+    print(summary(models[[i]]))
 }</code></pre>
 <pre><code>## 
 ## --- S13 S94 ---
