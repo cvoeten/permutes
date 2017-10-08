@@ -10,7 +10,7 @@ output:
     html_document: default
 ---
 
-This vignette models EEG data, an example of _time series data_, using generalized additive mixed modeling [@mgcv] and permutation testing. Since both techniques rely fundamentally on the linear model of regression, we will first _very_ briefly introduce the relevant mathematical foundations. The reader familiar with basic statistics can safely skip this section.
+This vignette models EEG data, an example of _time series data_, using generalized additive mixed modeling [@mgcv] and permutation testing [@marisoostenveld]. Since both techniques rely fundamentally on the linear model of regression, we will first _very_ briefly introduce the relevant mathematical foundations. The reader familiar with basic statistics can safely skip this section.
 
 The linear model is summarized by the following equation:
 
@@ -124,29 +124,31 @@ We can then plot the results:
 plot(perms)
 ```
 
-The plot suggests two windows: one window located around 200 ms post-stimulus-onset, and a second window located around 330 ms post-stimulus-onset. The first window corresponds to the expected mismatch-negativity effect; the second window is likely a P300, which we will ignore here. A region of interest is not easily identified: it appears that all sites are giving significant results. This is expected given the spatial correlation inherent to EEG data, but at the same time we should realize that the significant $p$-values do not really tell us all that much: the _effect sizes_ might vary by ROI in a meaningful way, but a binary criterion $p < .05$ eclipses this variation. Once we know that a measurement is significant, its _effect size_ ($\omega^2$) would be a more useful measure. We can ask for a heatmap of the effect sizes by passing `plot='w2'` (as opposed to the default `plot='p'`) to our `plot` command. However, we first gray out the calculated effect sizes for those cases whose $p$-values did not reach the $<.05$ cutoff point, because effect sizes for non-significant effects are dubious.
+Following @marisoostenveld, the `plot` method from `permutes` by default plots $F$-values. @marisoostenveld then compute a cluster statistic over a range of temporally and/or spatially adjacent $F$-values that all match an inclusion criterion (e.g.\ $p<.05$). This cluster statistic is not explicitly calculated by `permutes` (in the general case, `permutes` does not know which responses in any multivariate design should be considered adjacent), but the clusters can be identified by the researcher based on visual inspection, and the researcher can then run any test they want on the subset of data falling within the cluster. If the we want to stick to @marisoostenveld, this test should be another permutation ANOVA over the whole window, but we will see below that generalized additive models offer a much better option than ANOVA, by virtue of being able to take into account the temporal and spatial correlations present in the data.
+
+Based on visual inspection, the plot suggests two windows: one window located around 200 ms post-stimulus-onset, and a second window located around 330 ms post-stimulus-onset. The first window corresponds to the expected mismatch-negativity effect; the second window is likely a P300, which we will ignore here. The region of interest can be tentatively estimated as frontal and central (which is good news for @lisetteoddball, as this is in line with prior literature on the MMN component), but we would like some formal verification. One option is to follow @marisoostenveld in discarding those results that have failed to achieve significance; we can then check again for contiguous bands that achieve large effect sizes, and base our ROI on their positions. Because `permutes` objects are also normal data frames, it is straightforward to gray out non-significant effects:
 
 ```{r es}
 head(perms) #take a look at the data structure
-perms[perms$p >= .05,'w2'] <- NA
-plot(perms,plot='w2')
+perms[perms$p >= .05,c('F','w2')] <- NA
+plot(perms)
 ```
 
-From this plot, the effects look to be largest at the frontal and central regions. This is again good news for @lisetteoddball, as it is in line with prior literature on the MMN component. We can now exploit the fact that `permutes` objects are also normal dataframes to precisely determine our temporal window. We remove the channels outside of the frontal/central ROI and then aggregate the $p$-values that remain. We can then define arbitrary cutoff points for including/excluding a part of the larger time window.
+From this plot, the effects look to be relatively robust at, indeed, the frontal and central regions. As a next step, we should determine the temporal window with more precision. To do so, we will compute cluster statistics by summing the $F$-values belonging to the relevant electrodes, and plot them as a function of the time. We can then define arbitrary cutoff points for including/excluding a part of the larger time window.
 
 ```{r agg}
 perms2 <- perms[perms$measure %in% .(Fp1,AF3,F7,F3,FC1,FC5,C3,CP1,CP5,CP6,CP2,C4,FC6,FC2,
 	F4,F8,AF4,Fp2,Fz),]
 perms2$measure <- 'Aggregate'
-perms2 <- aggregate(p ~ measure + time + factor,perms2,mean)
-plot(perms2$time,perms2$p)
-abline(h=.2)
+perms2 <- aggregate(. ~ measure + time + factor,perms2,sum)
+plot(perms2$time,perms2$F)
+abline(h=50)
 ```
 
-Keep in mind that our aggregating of $p$-values is statistically completely nonsensical, so we cannot use $p < .05$ as a criterion for determining our window here. Based on the plot, the author would arbitrarily suggest picking a value of $.2$. The included `abline(h=.2)` shows that this looks quite reasonable. Let's see what time window corresponds to this value:
+Based on the plot, a cut-off $F$ value of 50 seems reasonable, as also suggested by the included `abline(h=50)`. Let's see what time window corresponds to this value:
 
 ```{r 2val}
-unique(perms2[perms2$p < .2,'time'])
+unique(perms2[perms2$F > 50,'time'])
 ```
 
 Based on this output combined with (common?)\ sense, the author would recommend a window ranging from 151 to 269 milliseconds. If the analyst trained in the NHST framework is afraid of the large degree of personal judgement in this approach, it is possible to coerce our `perms2` object -- which became a `data.frame` after the `aggregate` call -- back into a `permutes`-class object, so that the more familiar (and colorful) plot provided by `permutes` can be used to make the same decision:
@@ -172,12 +174,12 @@ part <- melt(part,id.vars=.(time,ppn,session,cond,dev),
 part$electrode <- as.character(part$electrode)
 part <- ddply(part,~electrode,function (data) {
 	me <- unique(data$electrode)
-	data$x <- list(Fz=0,Cz=0,Pz=0,Oz=0,FC1=-1,CP1=-1,Fp1=-2,AF3=-2,F3=-2,C3=-2,P3=-2,
+	data$x <- switch(me,Fz=0,Cz=0,Pz=0,Oz=0,FC1=-1,CP1=-1,Fp1=-2,AF3=-2,F3=-2,C3=-2,P3=-2,
 		PO3=-2,O1=-2,FC5=-3,CP5=-3,F7=-4,T7=-4,P7=-4,FC2=1,CP2=1,Fp2=2,AF4=2,F4=2,
-		C4=2,P4=2,PO4=2,O2=2,FC6=3,CP6=3,F8=4,T8=4,P8=4)[[me]]
-	data$y <- list(T7=0,C3=0,Cz=0,C4=0,T8=0,CP5=1,CP1=1,CP2=1,CP6=1,P7=2,P3=2,Pz=2,P4=2,
+		C4=2,P4=2,PO4=2,O2=2,FC6=3,CP6=3,F8=4,T8=4,P8=4)
+	data$y <- switch(me,T7=0,C3=0,Cz=0,C4=0,T8=0,CP5=1,CP1=1,CP2=1,CP6=1,P7=2,P3=2,Pz=2,P4=2,
 		P8=2,PO3=3,PO4=4,O1=5,Oz=5,O2=5,FC5=-1,FC1=-1,FC2=-1,FC6=-1,F7=-2,F3=-2,Fz=-2,
-		F4=-2,F8=-2,AF3=-3,AF4=-3,Fp1=-4,Fp2=-4)[[me]]
+		F4=-2,F8=-2,AF3=-3,AF4=-3,Fp1=-4,Fp2=-4)
 	data
 })
 part <- part[part$electrode %in% .(Fp1,AF3,F7,F3,FC1,FC5,C3,CP1,CP5,CP6,CP2,C4,FC6,FC2,F4,
@@ -187,7 +189,7 @@ part <- part[complete.cases(part),] #remove cases with missing electrodes
 
 Generalized additive mixed models work by assuming that a user-specified set of predictors can be modeled by a user-specified smooth function. As a simple (and rather pointless) example, consider a one-dimensional linear smooth of a hypothetical independent variable $x$ whose values $x_{1\dots 10}$ are the numbers one to ten and whose true effect on the response is to increase it by $\mathcal{N}(3x,1)$. The generalized additive mixed model would fit this effect in two places. First of all, it will perform a smooth-specific transformation to the data points $x_{1\dots 10}$ and store the result as a predictor in $X$. In our example, the smooth is linear (and is hence not really a smooth at all), so this will just result in a column containing the numbers one to ten. This models the fixed part of the smooth; in our example, this effect will be fitted as $\hat{\beta} = 3$. It will also add the same column to $Z$, modeling the wiggly part of the smooth; for our example, its variance should be estimated as $1$.
 
-Of course, a linear smooth is exactly the same as the ordinary combination of a fixed effect and random slope over a dummy grouping factor, by definition. In our analysis of Jager's (in prep.)\ EEG data, we will use three different smooths that are much more useful. The first smooth type is known in `mgcv` as `re` (for 'random effect'). This smooth is a little different from the general case described in the previous paragraph, because it only operates on $Z$, and does not actually add its parameters to $X$ at all. It is discussed first because this is also the only type of smooth (to the author's knowledge) that, like our linear-smooth example, does not transform the data. These two properties mean that this smooth is exactly equivalent to a simple random effect. This smooth is used four times in our analysis: once to denote a random intercept by participants (in which case the effect's block in $Z$ will consist of a column of ones for each participant), and three times to denote a random slope by participants (in which case it will be represented by an actual part of the `MMN` dataset).
+Of course, a linear smooth is exactly the same as the ordinary combination of a fixed effect and random slope over a dummy grouping factor, by definition. In our analysis of Jager's (in prep.)\ EEG data, we will use three different smooths that are much more useful. The first smooth type is known in `mgcv` as `re` (for 'random effect'). This smooth is a little different from the general case described in the previous paragraph, because it only operates on $Z$, and does not actually add its parameters to $X$ at all. It is discussed first because this is also the only type of smooth (to the author's knowledge) that, like our linear-smooth example, does not impose a non-linear link function onto the data. These two properties mean that this smooth is exactly equivalent to a simple random effect. This smooth is used four times in our analysis: once to denote a random intercept by participants (in which case the effect's block in $Z$ will consist of a column of ones for each participant), and three times to denote a random slope by participants (in which case it will be represented by an actual part of the `MMN` dataset).
 
 We will also use two 'real' smooths. The first is a Duchon spline, which is useful for modeling spatial data. This smooth is of dimension 2 (because it will smooth over the $\langle x,y \rangle$ coordinates of the electrodes on the cap) and is fitted using nineteen knots (i.e.\ nineteen columns in $X$ and in $Z$). This number was not chosen arbitrarily: it is the number of unique combinations of $\langle x,y \rangle$ pairs present in the data. As we will see below, this number is probably a fair bit too high, but the only consequence of that is that the model will take much longer to fit than if a more optimal number had been chosen.
 
@@ -198,8 +200,9 @@ In addition to this tensor product of two smooths, we include the same tensor pr
 It is important to keep in mind that _none of these smooth terms are of actual interest_. They _only_ serve to compensate for the random differences between participants and for the autocorrelated space and time that are inherent to EEG data. The real predictors of interest are the parametric terms `dev`, `session`, and their interaction. To ease interpretability, we run a separate analysis for both of the two conditions included in the supplied dataset. We then expect significant MMN effects in only some of the conditions and not in others, for theoretical reasons beyond the scope of this vignette. Note that this is a cluster-class workload: an ordinary desktop computer will not be able to fit models of this complexity to a dataset this large (~7.7 million rows). Since we will assume that this analysis will be run on a computer cluster, we will liberally make use of the parallelization capabilities in `mgcv` and of the fact that fitting two separate models is an obviously parallelizable task. The code we use is presented below:
 
 ```{r gam,eval=F}
-part$both <- part$dev * part$session #construct an interaction term to be used as by=...
-                                     #argument
+part$dev <- 0 + part$dev #mgcv does not understand logical by=... arguments
+part$session <- 0 + part$session
+part$both <- part$dev * part$session #construct interaction term
 clusterExport(cl,'part')
 pairs <- list(c('S13','S94'),c('S16','S95'))
 fun <- function (C) {
@@ -236,7 +239,7 @@ $$ \ell_\mathit{REML}(\theta,\sigma | Y) = \int\limits_{-\infty}^\infty \ell(\be
 
 where $\ell$ is the likelihood of the data given the current parameter estimates for the model (but in practice, $\ell$ is always replaced by the deviance). The innovation over the traditional likelihood is that the $\beta$ parameter is integrated out just like $u$ was earlier (see the final paragraph of the introduction). This compensates for bias inherent to regular maximum likelihood estimation, which is the same problem we saw in the first paragraph when we formed $\hat{\sigma}$ by dividing the $r^2$ by $n-p$ rather than by $n$. Maximum likelihood finds the values for $\theta$ that maximize the likelihood of the data given $\beta$, $\theta$ and $\sigma$, but it fails to take into account that we have _estimated_ $\beta$ by $\hat{\beta}$, which will have introduced error (that again accumulates when squared and takes away variance from the residual error $\sigma$). This is something that should again be compensated just like it is when calculating $\hat{\sigma}$ (or rather $s$) as an unbiased estimator of $\sigma$. This is done by maximizing not the likelihood, but the _restricted_ likelihood. As shown above, this REML criterion is calculated by integrating out the fixed effects. In other words, the model maximizes the likelihood of observing the data _for all values of $\beta$_, rather than only the estimated $\hat{\beta}$. Crucially, this means that if two models do not have the same structure for $X$, and hence have different $\beta$s, integrating with respect to $\beta$ amounts to adding a different constant to the likelihood function. _It is then no longer valid to perform model comparisons by comparing the change in deviance to a $\chi^2$ distribution_, since the change in deviance between the two models will also include the change in this integrated constant. If we wanted to do model comparisons (we see no reason to, although a scrutinous linguist might consider the `dev:session` term for exclusion), we would have to refit the models with `method='ML'`.
 
-There is one part of this code that still needs explanation. We actually fit the model not once, but twice. This is because EEG data is often temporally autocorrelated in the residuals, even after including a temporal smooth (e.g.\ @eeggamm). The first time we fit the model, we only use the resulting fit to determine how large this autocorrelation is. We extract the lag-1 autocorrelation present in the model's residuals, and then fit the model again, this time informing `bam` that it should take an autocorrelation of that size into account. Note that the true autocorrelation is likely to be much more complex than an AR(1) process, and might be better modeled using an ARMA process instead; however, currently `bam` is only able to fit lag-1 autocorrelated models. It is possible to fit more complex correlation structures using `gamm`, but this routine is much slower, less numerically stable, and, at least when run on these data, often produces singular fits during the optimization process, which is a fatal error in `nlme`. (This is because @pinheirobates parameterize $\Lambda_\theta$ not in terms of relative covariance, but rather in terms of its reciprocal, viz. relative precision. A singular fit then corresponds to infinite parameter values, from which numerical calculation cannot continue.)
+There is one part of this code that still needs explanation. We actually fit the model not once, but twice. This is because EEG data is often temporally autocorrelated in the residuals, even after including a temporal smooth [@eeggamm]. The first time we fit the model, we only use the resulting fit to determine how large this autocorrelation is. We extract the lag-1 autocorrelation present in the model's residuals, and then fit the model again, this time informing `bam` that it should take an autocorrelation of that size into account. Note that the true autocorrelation is likely to be much more complex than an AR(1) process, and might be better modeled using an ARMA process instead; however, currently `bam` is only able to fit lag-1 autocorrelated models. It is possible to fit more complex correlation structures using `gamm`, but this routine is much slower, less numerically stable, and, at least when run on these data, often produces singular fits during the optimization process, which is a fatal error in `nlme`. (This is because @pinheirobates parameterize $\Lambda_\theta$ not in terms of relative covariance, but rather in terms of its reciprocal, viz. relative precision. A singular fit then corresponds to infinite parameter values, from which numerical calculation cannot continue.)
 
 The results of the two (corrected) fits -- which are not distributed along with the package due to the large size of the `models` object (the `.RData` file is 2GiB in size) -- are shown below:
 
@@ -341,6 +344,6 @@ corrected.summary <- function (summary) {
 }
 ```
 
-to clamp the $p$-values to the $[0,1]$ range. ($p$-values exceeding 1 are an error in `R`, and will prevent the summary from being printed.)
+to clip the $p$-values to the $[0,1]$ range. ($p$-values exceeding 1 are an error in `R`, and will prevent the summary from being printed.)
 
 # References
