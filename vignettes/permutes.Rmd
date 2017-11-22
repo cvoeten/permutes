@@ -1,7 +1,7 @@
 ---
 title: "Analyzing time series data using the 'permutes' package"
 author: "Cesko Voeten"
-date: "8 October 2017"
+date: "22 November 2017"
 bibliography: bibliography.bib
 csl: apa.csl
 output:
@@ -162,60 +162,50 @@ Having determined a window and an ROI, we can now proceed to the actual modeling
 
 ## Modeling EEG data using generalized additive mixed modeling
 
-As stated in the beginning, generalized additive mixed models are capable of dealing with the temporal correlation and the spatial correlation that are both still present in our data. We first need to select the subset of our data corresponding to our chosen window. We then need to center our timepoint predictor (important for our temporal smooth later on) and to melt the dataset and assign coordinates to the electrode positions (important for our spatial smooth later on). Finally, we extract only our chosen ROI.
+As stated in the beginning, generalized additive mixed models are capable of dealing with the temporal correlation and the spatial correlation that are both still present in our data. We need to slightly modify our data to incorporate the necessary information, which we will achieve using a `dplyr` pipeline; we will also need `tidyr` for its `gather` command. _Install these packages if you do not have them yet._ The pipeline works as follows. First, we subset our data corresponding to our chosen temporal window. Next, we center our timepoint predictor, a step which is not strictly necessary due to implementation details in `mgcv`, but which is recommended standard practice when working with continuous predictors in general. We then reshape our dataset from wide into long format: the columns from `Fp1` to `Cz` will become rows of observations, as is necessary for the spatial smooth which we will use later. The `mutate` command that follows creates two new columns representing the latitude and longitude of our EEG electrodes on the subject's head (the polar coordinates were obtained directly from Biosemi). Finally, we extract our chosen ROI and drop missing observations.
 
 ```{r reshape}
-part <- MMN[MMN$time > 151 & MMN$time < 269,]
-part$time <- part$time - mean(part$time)
-
-library(reshape2)
-part <- melt(part,id.vars=.(time,ppn,session,cond,dev),
-	variable.name='electrode',value.name='amplitude')
-part$electrode <- as.character(part$electrode)
-part <- ddply(part,~electrode,function (data) {
-	me <- unique(data$electrode)
-	data$x <- switch(me,Fz=0,Cz=0,Pz=0,Oz=0,FC1=-1,CP1=-1,Fp1=-2,AF3=-2,F3=-2,C3=-2,P3=-2,
-		PO3=-2,O1=-2,FC5=-3,CP5=-3,F7=-4,T7=-4,P7=-4,FC2=1,CP2=1,Fp2=2,AF4=2,F4=2,
-		C4=2,P4=2,PO4=2,O2=2,FC6=3,CP6=3,F8=4,T8=4,P8=4)
-	data$y <- switch(me,T7=0,C3=0,Cz=0,C4=0,T8=0,CP5=1,CP1=1,CP2=1,CP6=1,P7=2,P3=2,Pz=2,P4=2,
-		P8=2,PO3=3,PO4=4,O1=5,Oz=5,O2=5,FC5=-1,FC1=-1,FC2=-1,FC6=-1,F7=-2,F3=-2,Fz=-2,
-		F4=-2,F8=-2,AF3=-3,AF4=-3,Fp1=-4,Fp2=-4)
-	data
-})
-part <- part[part$electrode %in% .(Fp1,AF3,F7,F3,FC1,FC5,C3,CP1,CP5,CP6,CP2,C4,FC6,FC2,F4,
-	F8,AF4,Fp2,Fz),]
-part <- part[complete.cases(part),] #remove cases with missing electrodes
+library(dplyr)
+library(tidyr)
+part <- MMN %>%
+	filter(time > 151, time < 269) %>%
+	mutate(time = time - mean(time)) %>%
+	gather('electrode','amplitude',Fp1:Cz) %>%
+	mutate(lat = recode(electrode,Fp1=6,AF3=5,F7=6,F3=3,FC1=1,FC5=4,T7=6,C3=2,CP1=1,CP5=4,
+		P7=6,P3=3,Pz=9,PO3=5,O1=6,Oz=13,O2=13,PO4=12,P4=10,P8=13,CP6=11,CP2=8,C4=9,T8=13,
+		FC6=11,FC2=8,F4=10,F8=13,AF4=12,Fp2=13,Fz=9,Cz=7), lon = recode(electrode,Fp1=6,
+		AF3=5,F7=2,F3=4,FC1=3,FC5=1,T7=8,C3=8,CP1=11,CP5=9,P7=10,P3=12,Pz=7,PO3=13,O1=14,
+		Oz=7,O2=6,PO4=5,P4=4,P8=2,CP6=1,CP2=3,C4=8,T8=8,FC6=9,FC2=11,F4=12,F8=10,AF4=13,
+		Fp2=14,Fz=15,Cz=8)) %>%
+	filter(electrode %in% .(Fp1,AF3,F7,F3,FC1,FC5,C3,CP1,CP5,CP6,CP2,C4,FC6,FC2,F4,F8,AF4,
+		Fp2,Fz),complete.cases(.))
 ```
 
-Generalized additive mixed models work by assuming that a user-specified set of predictors can be modeled by a user-specified smooth function. As a simple (and rather pointless) example, consider a one-dimensional linear smooth of a hypothetical independent variable $x$ whose values $x_{1\dots 10}$ are the numbers one to ten and whose true effect on the response is to increase it by $\mathcal{N}(3x,1)$. The generalized additive mixed model would fit this effect in two places. First of all, it will perform a smooth-specific transformation to the data points $x_{1\dots 10}$ and store the result as a predictor in $X$. In our example, the smooth is linear (and is hence not really a smooth at all), so this will just result in a column containing the numbers one to ten. This models the fixed part of the smooth; in our example, this effect will be fitted as $\hat{\beta} = 3$. It will also add the same column to $Z$, modeling the wiggly part of the smooth; for our example, its variance should be estimated as $1$.
+Generalized additive mixed models work by assuming that a user-specified set of predictors can be modeled by a user-specified smooth type. As a simple (and rather pointless) example, consider a one-dimensional linear smooth of a hypothetical independent variable $x$ whose values $x_{1\dots 10}$ are the numbers one to ten and whose true effect on the response is to increase it by $\mathcal{N}(3x,1)$. The generalized additive mixed model would fit this effect in two places. First of all, it will perform a smooth-specific transformation to the data points $x_{1\dots 10}$ and store the result as a predictor in $X$. In our example, the smooth is linear (and is hence not really a smooth at all), so this will just result in a column containing the numbers one to ten. This models the fixed part of the smooth; in our example, this effect will be fitted as $\hat{\beta} = 3$. It will also add the same column to $Z$, modeling the wiggly part of the smooth; for our example, its variance should be estimated as $1$.
 
 Of course, a linear smooth is exactly the same as the ordinary combination of a fixed effect and random slope over a dummy grouping factor, by definition. In our analysis of Jager's (in prep.)\ EEG data, we will use three different smooths that are much more useful. The first smooth type is known in `mgcv` as `re` (for 'random effect'). This smooth is a little different from the general case described in the previous paragraph, because it only operates on $Z$, and does not actually add its parameters to $X$ at all. It is discussed first because this is also the only type of smooth (to the author's knowledge) that, like our linear-smooth example, does not impose a non-linear link function onto the data. These two properties mean that this smooth is exactly equivalent to a simple random effect. This smooth is used four times in our analysis: once to denote a random intercept by participants (in which case the effect's block in $Z$ will consist of a column of ones for each participant), and three times to denote a random slope by participants (in which case it will be represented by an actual part of the `MMN` dataset).
 
-We will also use two 'real' smooths. The first is a Duchon spline, which is useful for modeling spatial data. This smooth is of dimension 2 (because it will smooth over the $\langle x,y \rangle$ coordinates of the electrodes on the cap) and is fitted using nineteen knots (i.e.\ nineteen columns in $X$ and in $Z$). This number was not chosen arbitrarily: it is the number of unique combinations of $\langle x,y \rangle$ pairs present in the data. As we will see below, this number is probably a fair bit too high, but the only consequence of that is that the model will take much longer to fit than if a more optimal number had been chosen.
+We will also use two 'real' smooths. The simplest to explain is a spline on the sphere, which is used to model spatial correlation among datapoints coming from a spherical object. This smooth is of dimension 2 (because it will smooth over the $\langle x,y \rangle$ coordinates of the electrodes on the cap) and is fitted using nineteen knots (i.e.\ nineteen columns in $X$ and in $Z$). This number was not chosen arbitrarily: it is the number of unique combinations of $\langle x,y \rangle$ pairs present in the data. As we will see below, this number is probably a fair bit too high, but the only consequence of that is that the model will take much longer to fit than if a more optimal number had been chosen.
 
-The second smooth is a thin plate regression spline, which will smooth over the 'time' predictor. The number of knots is arbitrarily but reasonably (given the already closely-specified temporal interval) chosen as 5. Note that what we actually ask the model to calculate is the _tensor product_ of the Duchon spline and the thin plate regression spline: this is conceptually (but not mathemathically) similar to an interaction. Mathematically, interactions between two smooths are impossible, hence the name 'generalized _additive_ model', but the tensor product combines the two smooths together into a single large smooth matrix. Because we use `te()` rather than `ti()`, this matrix contains both the 'main effects' of our Duchon spline and thin plate regression spline, as well as their combination (i.e.\ how the spatial distribution of the EEG activity changes over time).
+The second smooth is a thin plate regression spline, which will smooth over the 'time' predictor. The number of knots is arbitrarily but reasonably (given the already closely-specified temporal interval) chosen as 5. Note that in the case of the thin plate regression spline these 'knots' are actually basis functions; for practical purposes, this distinction is not currently critical. Given the order-2 spline on the sphere and the order-1 thin plate regression spline, we will instruct the model to calculate the _tensor product_ of these two splines: this is conceptually (but not mathemathically) similar to an interaction. Mathematically, interactions between two smooths are impossible, hence the name 'generalized _additive_ model', but the tensor product combines the two smooths together into a single large smooth matrix. Because we use `te()` rather than `ti()`, this matrix contains both the 'main effects' of the two splines, as well as their combination (i.e.\ how the spatial distribution of the EEG activity changes over time).
 
-In addition to this tensor product of two smooths, we include the same tensor product combined with a random effect by participants (modeling how the smooths differ across individuals). Our use of `t2` and `full=TRUE` make this tensor product coincide with what for simplex random smooths is called a 'factor smooth', and we pass `m=1` to penalize the first-order derivatives of the smooths (when `m` is a single number, it is applied to all smooths inside a tensor product). This is a stricter penalty than, for instance, enforcing smoothness of the second-order derivatives, which would allow the smooth itself to vary freely in slope, as long as the _changes_ in the slopes are relatively small; for non-random smooth terms, this would be sensible to obtain effective smoothing, but for a random smooth it is better to enforce a stronger penalty. This causes the estimated slopes to shrink towards zero, which penalizes overfitting in a similar way to how linear mixed-effects regression penalizes larger values of $u$. For the Duchon spline and the thin plate regression spline, we pass the same number of knots as we did before (which, we will see below, is gravely suboptimal in terms of computational efficiency), and for the random effect we pass a nonsensical number of 10, which is ignored anyway because a random effect _has_ no knots.
+In addition to this tensor product of two smooths, we include the same tensor product combined with a random effect by participants (modeling how the smooths differ across individuals). Our use of `t2` and `full=TRUE` make this tensor product coincide with what for simplex random smooths is called a 'factor smooth', and we pass `m=1` to penalize the first-order derivatives of the smooths (when `m` is a single number, it is applied to all smooths inside a tensor product). This is a stricter penalty than, for instance, enforcing smoothness of the second-order derivatives, which would allow the smooth itself to vary freely in slope, as long as the _changes_ in the slopes are relatively small; for non-random smooth terms, this would be sensible to obtain effective smoothing, but for a random smooth it is better to enforce a stronger penalty. This causes the estimated slopes to shrink towards zero, which penalizes overfitting in a similar way to how linear mixed-effects regression penalizes larger values of $u$. For the spline on the sphere and the thin plate regression spline, we pass the same number of knots as we did before (which, we will see below, is gravely suboptimal in terms of computational efficiency), and for the random effect we pass a nonsensical number of 5 (the default value for `k` for 1-dimensional smooths), which is ignored anyway because a random effect _has_ no knots.
 
-It is important to keep in mind that _none of these smooth terms are of actual interest_. They _only_ serve to compensate for the random differences between participants and for the autocorrelated space and time that are inherent to EEG data. The real predictors of interest are the parametric terms `dev`, `session`, and their interaction. To ease interpretability, we run a separate analysis for both of the two conditions included in the supplied dataset. We then expect significant MMN effects in only some of the conditions and not in others, for theoretical reasons beyond the scope of this vignette. Note that this is a cluster-class workload: an ordinary desktop computer will not be able to fit models of this complexity to a dataset this large (~7.7 million rows). Since we will assume that this analysis will be run on a computer cluster, we will liberally make use of the parallelization capabilities in `mgcv` and of the fact that fitting two separate models is an obviously parallelizable task. The code we use is presented below:
+It is important to keep in mind that _none of these smooth terms are of actual interest_. They _only_ serve to compensate for the random differences between participants and for the autocorrelated space and time that are inherent to EEG data. The real predictors of interest are the parametric terms `dev`, `session`, and their interaction. To ease interpretability, we run a separate analysis for both of the two conditions included in the supplied dataset. We then expect significant MMN effects in only some of the conditions and not in others, for theoretical reasons beyond the scope of this vignette. The code used to fit the models is presented below
 
 ```{r gam,eval=F}
-part$dev <- 0 + part$dev #mgcv does not understand logical by=... arguments
-part$session <- 0 + part$session
 part$both <- part$dev * part$session #construct interaction term
 clusterExport(cl,'part')
 pairs <- list(c('S13','S94'),c('S16','S95'))
 fun <- function (C) {
-	library(parallel)
-	cl <- makeCluster(8)
 	library(mgcv)
 	data <- part[part$cond %in% C,]
 
 	form <- amplitude ~ dev*session + s(ppn,bs='re') + s(ppn,by=dev,bs='re') +
 		s(ppn,by=session,bs='re') + s(ppn,by=both,bs='re') +
-		te(x,y,time,bs=c('ds','tp'),d=c(2,1),k=c(19,5)) +
-		t2(x,y,time,ppn,bs=c('ds','tp','re'),d=c(2,1,1),k=c(19,5,10),m=1,full=TRUE)
-	model <- bam(form,data=data,method='REML',cluster=cl)
+		te(lat,lon,time,bs=c('ds','tp'),d=c(2,1),k=c(19,5)) +
+		t2(lat,lon,time,ppn,bs=c('sos','tp','re'),d=c(2,1,1),k=c(19,5,5),m=1,full=TRUE)
+	model <- bam(form,data=data,nthreads=8)
 
 	# Figure out the autocorrelation in the residuals. We cannot use acf(resid(m)),
 	# because that will not take into account event boundaries (the whole dataset will be
@@ -226,14 +216,15 @@ fun <- function (C) {
 	res.binned <- split(res,bins)
 	rhos <- sapply(res.binned,function (x) acf(x,plot=FALSE)$acf[2])
 
-	bam(form,data=data,method='REML',cluster=cl,AR.start=AR.start,rho=mean(rhos))
+	bam(form,data=data,nthreads=8,AR.start=AR.start,rho=mean(rhos))
 }
 models <- parLapply(cl,pairs,fun)
 ```
 
-A few bits of this code require some explanation. First, we make a list of data combinations that are of interest to us; it is by this list that we subset the data into our two comparisons. This is not the most straightforward way to segment the data into our two bins of interest, but this is how @lisetteoddball formatted her data. Then, for each of our two comparisons (which will be run in parallel), we create an eight-node subcluster for use by `mgcv`, subset our data, and then formulate and fit our model. We pass `method='REML'` to our call to `bam` instead of using the default, `fREML`, because [fREML can be unreliable at times](https://stackoverflow.com/questions/40788972/why-is-bam-from-mgcv-slow-for-some-data).
+A few bits of this code require some explanation. First, we make a list of data combinations that are of interest to us; it is by this list that we subset the data into our two comparisons. This is not the most straightforward way to segment the data into our two bins of interest, but this is how @lisetteoddball formatted her data. Then, for each of our two comparisons (which will be run in parallel), we subset our data and then formulate and fit our model, affording it 8 CPU threads. On the computer cluster administrated by the Radboud University Nijmegen, this takes about 5 GiB of RAM per model and about three hours of wall time.
 
-It is very important to mention that our use of the REML criterion (i.e.\ restricted maximum likelihood), rather than the conventional maximum likelihood, means that it is illegitimate to perform model comparisons between models differing in $X$. Without going into too much detail, the REML criterion can be defined as:
+It is very important to mention that by default, `bam` uses (a fast approximation of) the REML criterion (i.e.\ restricted maximum likelihood), rather than the conventional maximum likelihood, to estimate the smooth parameters. _This
+means that it is illegitimate to perform model comparisons between models differing in $X$_. Without going into too much detail, the REML criterion can be defined as:
 
 $$ \ell_\mathit{REML}(\theta,\sigma | Y) = \int\limits_{-\infty}^\infty \ell(\beta,\theta,\sigma) d\beta $$
 
@@ -259,32 +250,32 @@ Link function: identity
 Formula:
 amplitude ~ dev * session + s(ppn, bs = "re") + s(ppn, by = dev, 
     bs = "re") + s(ppn, by = session, bs = "re") + s(ppn, by = both, 
-    bs = "re") + te(x, y, time, bs = c("ds", "tp"), d = c(2, 
-    1), k = c(19, 5)) + t2(x, y, time, ppn, bs = c("ds", "tp", 
-    "re"), d = c(2, 1, 1), k = c(19, 5, 10), m = 1, full = TRUE)
+    bs = "re") + te(lat, lon, time, bs = c("sos", "tp"), d = c(2, 
+    1), k = c(19, 5)) + t2(lat, lon, time, ppn, bs = c("sos", 
+    "tp", "re"), d = c(2, 1, 1), k = c(19, 5, 5), m = 1, full = TRUE)
 
 Parametric coefficients:
             Estimate Std. Error t value Pr(>|t|)    
-(Intercept)   0.4372     0.1645   2.657  0.00788 ** 
-dev          -0.9273     0.2289  -4.051  5.1e-05 ***
-session      -0.3770     0.1677  -2.248  0.02456 *  
-dev:session  -0.2180     0.3499  -0.623  0.53335    
+(Intercept)   0.7964     0.1742   4.573 4.81e-06 ***
+dev          -0.8847     0.2258  -3.917 8.95e-05 ***
+session      -0.3645     0.1607  -2.268   0.0233 *  
+dev:session  -0.1791     0.3444  -0.520   0.6031    
 ---
 Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
 
 Approximate significance of smooth terms:
-                     edf  Ref.df         F p-value    
-s(ppn)             25.58   26.00     86.94  <2e-16 ***
-s(ppn):dev         25.92   26.00  58198.01  <2e-16 ***
-s(ppn):session     19.03   20.00  47701.99  <2e-16 ***
-s(ppn):both        19.75   20.00 126259.46  <2e-16 ***
-te(x,y,time)       72.60   77.75     24.41  <2e-16 ***
-t2(x,y,time,ppn) 1594.82 2538.00  13258.98  <2e-16 ***
+                         edf  Ref.df         F  p-value    
+s(ppn)                  4.59   26.00     0.311 7.01e-09 ***
+s(ppn):dev             25.87   26.00 17915.461  < 2e-16 ***
+s(ppn):session         18.91   20.00 13891.178  < 2e-16 ***
+s(ppn):both            19.71   20.00 18452.996  < 2e-16 ***
+te(lat,lon,time)       74.64   79.84    25.534  < 2e-16 ***
+t2(lat,lon,time,ppn) 1678.87 2538.00  4723.986  < 2e-16 ***
 ---
 Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
 
-R-sq.(adj) =   0.78   Deviance explained = 78.3%
--REML = -56934  Scale est. = 0.13832   n = 111325
+R-sq.(adj) =  0.773   Deviance explained = 77.6%
+fREML = -65336  Scale est. = 0.17323   n = 111325
 
 --- S16 S95 ---
 
@@ -294,36 +285,36 @@ Link function: identity
 Formula:
 amplitude ~ dev * session + s(ppn, bs = "re") + s(ppn, by = dev, 
     bs = "re") + s(ppn, by = session, bs = "re") + s(ppn, by = both, 
-    bs = "re") + te(x, y, time, bs = c("ds", "tp"), d = c(2, 
-    1), k = c(19, 5)) + t2(x, y, time, ppn, bs = c("ds", "tp", 
-    "re"), d = c(2, 1, 1), k = c(19, 5, 10), m = 1, full = TRUE)
+    bs = "re") + te(lat, lon, time, bs = c("sos", "tp"), d = c(2, 
+    1), k = c(19, 5)) + t2(lat, lon, time, ppn, bs = c("sos", 
+    "tp", "re"), d = c(2, 1, 1), k = c(19, 5, 5), m = 1, full = TRUE)
 
 Parametric coefficients:
             Estimate Std. Error t value Pr(>|t|)    
-(Intercept)   0.6868     0.1679   4.091 4.30e-05 ***
-dev          -0.9621     0.2207  -4.359 1.31e-05 ***
-session      -0.5602     0.1749  -3.203  0.00136 ** 
-dev:session  -0.0888     0.2474  -0.359  0.71963    
+(Intercept)  0.83630    0.19354   4.321 1.55e-05 ***
+dev         -1.09572    0.22361  -4.900 9.59e-07 ***
+session     -0.58773    0.18237  -3.223  0.00127 ** 
+dev:session -0.08214    0.24845  -0.331  0.74094    
 ---
 Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
 
 Approximate significance of smooth terms:
-                     edf  Ref.df        F  p-value    
-s(ppn)             11.16   26.00    0.894 1.61e-10 ***
-s(ppn):dev         25.54   26.00 1271.480  < 2e-16 ***
-s(ppn):session     18.61   20.00  987.790 3.94e-11 ***
-s(ppn):both        18.96   20.00 1448.366 1.57e-11 ***
-te(x,y,time)       68.41   75.26   11.431  < 2e-16 ***
-t2(x,y,time,ppn) 1344.11 2545.00  389.414 1.65e-13 ***
+                         edf  Ref.df        F  p-value    
+s(ppn)                 15.47   26.00    3.569  < 2e-16 ***
+s(ppn):dev             25.78   26.00 5721.790  < 2e-16 ***
+s(ppn):session         19.02   20.00 4496.386 1.81e-12 ***
+s(ppn):both            19.30   20.00 8343.386 1.15e-14 ***
+te(lat,lon,time)       71.69   77.68   11.707  < 2e-16 ***
+t2(lat,lon,time,ppn) 1515.23 2545.00 1013.609 4.85e-05 ***
 ---
 Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
 
-R-sq.(adj) =  0.641   Deviance explained = 64.5%
--REML = -38299  Scale est. = 0.44324   n = 111203
+R-sq.(adj) =  0.653   Deviance explained = 65.9%
+fREML = -30484  Scale est. = 0.29661   n = 111203
 ')
 ```
 
-Note that the results show that our settings for the `k` parameters for the smooths were not entirely optimal. A value of `k` that is too low will result in undersmoothing, and hence in underfitting of the data. This can be detected by looking for smooth parameters in the summary whose `edf` (estimated degrees of freedom) are very close to the reference degrees of freedom (i.e.\ the maximum permitted by our choice of `k`). On the other hand, a value for `k` that is too large is statistically entirely unproblematic. One might expect that a value that is too large will lead to oversmoothing and hence overfitting, but because the splines are penalized this problem resolves itself: the model artificially disfavors smooths that use more knots than justified by the data. Thus, if a `k` value is set too large, the analyst only pays in terms of computational complexity, i.e.\ the amount of time needed to fit the model. This is because by telling `gam` to use a large number of knots, we instruct it to search a large space of possible solutions to the model, whereas the 'true' solution is apparently located in a much smaller interior space. For the first spatiotemporal smooth, the difference between the `edf` and `Ref.df` suggest that we have number of knots we have allowed the model to use is adequate; we could perhaps reduce the spatial smooth by one or two knots, but in general it looks like the model has been estimated relatively efficiently. For the second, random, smooth, however, the number of knots is nearly twice as much as the models actually needed to use, so significant computational efficiency can be gained by reducing the number of knots here. Exploring this possibility is beyond the scope of this vignette, however.
+The results show that our settings for the `k` parameters for the smooths were not entirely optimal. A value of `k` that is too low will result in undersmoothing, and hence in underfitting of the data. This can be detected by looking for smooth parameters in the summary whose `edf` (estimated degrees of freedom) are very close to the reference degrees of freedom (i.e.\ the maximum permitted by our choice of `k`). On the other hand, a value for `k` that is too large is statistically entirely unproblematic. One might expect that a value that is too large will lead to oversmoothing and hence overfitting, but because the splines are penalized this problem resolves itself: the model artificially disfavors smooths that use more knots than justified by the data. Thus, if a `k` value is set too large, the analyst only pays in terms of computational complexity, i.e.\ the amount of time needed to fit the model. This is because by telling `gam` to use a large number of knots, we instruct it to search a large space of possible solutions to the model, whereas the 'true' solution is apparently located in a much smaller interior space. For the first spatiotemporal smooth, the difference between the `edf` and `Ref.df` suggest that we have number of knots we have allowed the model to use is adequate; we could perhaps reduce the spatial smooth by one or two knots, but in general it looks like the model has been estimated relatively efficiently. For the second, random, smooth, however, the number of knots is nearly twice as much as the models actually needed to use, so significant computational efficiency can be gained by reducing the number of knots here. Exploring this possibility is beyond the scope of this vignette, however.
 
 This concludes our analysis of Jager's (in prep.)\ EEG data. On a final note, the summary statistics reported here should probably be corrected for multiple comparisons, but my supervisor does not seem to think so, so I'll leave it at that. If the analyst wants to correct for multiple comparisons, the Sidak correction is a good option:
 
