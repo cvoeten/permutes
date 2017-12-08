@@ -1,7 +1,7 @@
 ---
 title: "Analyzing time series data using the 'permutes' package"
 author: "Cesko Voeten"
-date: "22 November 2017"
+date: "8 December 2017"
 bibliography: bibliography.bib
 csl: apa.csl
 output:
@@ -41,7 +41,7 @@ r^2 &= (\hat{Y} - X\hat{\beta})^2 \\
 
 The covariance matrix is given by:
 
-$$ \hat{\sigma}(X^{\mathsf{T}}X)^{-1}, \quad \hat{\sigma} = s = \frac{r^2}{\mathit{df}} $$
+$$ \hat{\sigma}(X^{\mathsf{T}}X)^{-1}, \quad \hat{\sigma} = \sqrt{\sigma^2}, \quad \sigma^2 = \frac{r^2}{\mathit{df}} $$
 
 The degrees of freedom for calculating the mean squared error are defined as $\mathit{df} = n - p$, where $n$ is the number of observations and $p$ is the number of predictors in the model. Subtracting $p$ from $n$ compensates for inaccuracy in the estimation of $\beta$ by $\hat{\beta}$, which will have inflated the residuals $(Y - X\hat{\beta})^2$ away from their true values $(Y - X\beta)^2$ (remember that the residuals are squared, so this bias accumulates rather than canceling out). Accounting for this bias by artificially inflating the denominator results in $s$ being an unbiased estimator of the 'true' mean squared error. Having the covariance matrix makes it possible to derive $t$-values by dividing the $\hat{\beta}$ by their standard errors, which are the square roots of the diagonal of the covariance matrix:
 
