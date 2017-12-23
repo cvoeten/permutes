@@ -8,6 +8,10 @@ output:
     pdf_document:
         latex_engine: xelatex
     html_document: default
+vignette: >
+  \VignetteIndexEntry{Analyzing time series data using the `permutes' package}
+  \VignetteEngine{knitr::rmarkdown}
+  \usepackage[utf8]{inputenc}
 ---
 
 This vignette models EEG data, an example of _time series data_, using generalized additive mixed modeling [@mgcv] and permutation testing [@marisoostenveld]. Since both techniques rely fundamentally on the linear model of regression, we will first _very_ briefly introduce the relevant mathematical foundations. The reader familiar with basic statistics can safely skip this section.

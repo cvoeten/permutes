@@ -2,3 +2,5 @@
 .Rhistory
 .RData
 *.swp
+permutes.tar.gz
+permutes.Rcheck

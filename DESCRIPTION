@@ -9,10 +9,13 @@ Description: The permutes package helps you determine the analysis window to use
     tests to identify the timepoints where significance of an effects begins and ends, and plots the
     resulting p-values in a heatmap for your future perusal.
 Depends:
-    plyr, lmPerm, ggplot2, viridis
+    R (>= 2.10), plyr, lmPerm, ggplot2, viridis
+Suggests:
+    knitr
 License: FreeBSD
 Encoding: UTF-8
 LazyData: true
 RoxygenNote: 6.0.1
 BugReports: https://github.com/cvoeten/permutes/issues
+VignetteBuilder: knitr
 NeedsCompilation: no
