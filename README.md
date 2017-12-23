@@ -12,5 +12,3 @@ Note that the resulting *p*-values are still not valid for purposes of statistic
 library(devtools)
 install_github('cvoeten/permutes')
 ```
-
-(I intend to submit the package to CRAN once it's received some more testing.)

@@ -42,7 +42,7 @@ permu.test <- function (formula,data,subset=NULL,parallel=FALSE,progress='text')
 			data.frame(timepoint=t,factor=factors,F=Fval,p=pvals,w2=w2,stringsAsFactors=F)
 		},.id='measure')
 	},.id=NULL,.parallel=parallel,.progress=ifelse(parallel,'none',progress))
-	if (ncol(ret) < 4) ret <- cbind(as.character(formula[[2]]),ret,stringsAsFactors=F) #ldply will not have generated the first column if the outcome was univariate
+	if (ncol(ret) < 6) ret <- cbind(measure=as.character(formula[[2]]),ret,stringsAsFactors=F) #ldply will not have generated the first column if the outcome was univariate
 	colnames(ret)[2] <- timepoint.var
 	ret$measure <- sub('^ Response ','',ret$measure)
 	ret$factor <- sub(' +$','',ret$factor)
@@ -51,23 +51,17 @@ permu.test <- function (formula,data,subset=NULL,parallel=FALSE,progress='text')
 }
 
 #' Create a heatmap of the results of permutation testing.
-#' @param data Output of permu.test. You may want to subset it if you want to simulate zooming in.
+#' @param x Output of permu.test. You may want to subset it if you want to simulate zooming in.
 #' @param type The quantity to plot; one of 'F' (default), 'p', or 'w2' (omega squared).
 #' @param breaks The granularity of the labels of the x axis. Pass `unique(data[,2])' to get a tick for every timepoint. Combine this trick with subsetting of your dataset, and perhaps averaging over all your dependent variables, to `zoom in' on your data to help you determine precisely where significance begins and stops to occur.
+#' @param ... Other arguments, which will be ignored (the ellipsis is provided for consistency with the generic plot() method).
 #' @return A ggplot2 object containing a heatmap of p-values.
 #' @import ggplot2 viridis
 #' @export
-plot.permutes <- function (x,y=NULL,type=c('F','p','w2'),breaks=NULL) {
-	if (!is.null(y)) {
-		# User provided vectors instead of a dataframe
-		if ('data.frame' %in% class(x)) stop("Unable to understand 'y' argument if 'x' is not a vector")
-		p <- ggplot(aes(x=x,y=y))
-	} else {
-		# User provided a dataframe of permutation results
-		if (!'data.frame' %in% class(x)) stop("Error: 'x' is not a dataframe")
-		data <- x
-		p <- ggplot(data=data,aes_string(x=colnames(data)[2],y=colnames(data)[1]))
-	}
+plot.permutes <- function (x,type=c('F','p','w2'),breaks=NULL,...) {
+	if (!'data.frame' %in% class(x)) stop("Error: 'x' is not a dataframe")
+	data <- x
+	p <- ggplot(data=data,aes_string(x=colnames(data)[2],y=colnames(data)[1]))
 	plot <- type[1]
 	p <- p + geom_tile(aes_string(fill=plot)) + scale_fill_viridis(option='plasma',direction=ifelse(plot == 'p',-1,1))
 	p <- p + theme(panel.background=element_blank(),panel.grid.major=element_blank(),panel.grid.minor=element_blank())
