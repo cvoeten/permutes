@@ -1,6 +1,3 @@
-.Rproj.user
-.Rhistory
-.RData
 *.swp
-permutes.tar.gz
-permutes.Rcheck
+*.tar.gz
+*.Rcheck
