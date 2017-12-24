@@ -20,7 +20,7 @@ permu.test <- function (formula,data,subset=NULL,parallel=FALSE,progress='text')
 	if (!is.null(subset)) data <- data[subset,]
 	timepoints <- data[,timepoint.var]
 	ret <- adply(sort(unique(timepoints)),1,function (t) {
-		library(lmPerm)
+		library(lmPerm) #necessary because this function will be run on cluster nodes (if parallel=T), which do not automatically know to import this dependency
 		test <- tryCatch(aovp(formula,data[timepoints == t,],settings=F),error=errfun)
 		if (all(class(test) == 'data.frame')) return(test) #permutation test failed with an error
 		ldply(summary(test),function (res) {
