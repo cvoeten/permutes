@@ -4,10 +4,11 @@
 #' @param subset If specified, will only analyze the specified subset of the data.
 #' @param parallel Whether to parallelize the permutation testing using plyr's `parallel' option. Needs some additional set-up; see the plyr documentation.
 #' @param progress A plyr `.progress' bar name, see the plyr documentation. Ignored if parallel=TRUE.
+#' @param ... Other arguments to be passed to `aovp'.
 #' @return A dataframe of p-values.
 #' @import plyr lmPerm
 #' @export
-permu.test <- function (formula,data,subset=NULL,parallel=FALSE,progress='text') {
+permu.test <- function (formula,data,subset=NULL,parallel=FALSE,progress='text',...) {
 	errfun <- function (e) {
 		warning(e)
 		return(data.frame(timepoint=NA,factor=NA,p=NA,w2=NA))
@@ -19,9 +20,10 @@ permu.test <- function (formula,data,subset=NULL,parallel=FALSE,progress='text')
 	formula[[3]] <- indep[[2]]
 	if (!is.null(subset)) data <- data[subset,]
 	timepoints <- data[,timepoint.var]
+	dots <- list(...)
 	ret <- adply(sort(unique(timepoints)),1,function (t) {
 		library(lmPerm) #necessary because this function will be run on cluster nodes (if parallel=T), which do not automatically know to import this dependency
-		test <- tryCatch(aovp(formula,data[timepoints == t,],settings=F),error=errfun)
+		test <- tryCatch(do.call('aovp',c(list(formula,data[timepoints == t,],settings=F),dots)),error=errfun)
 		if (all(class(test) == 'data.frame')) return(test) #permutation test failed with an error
 		ldply(summary(test),function (res) {
 			if (ncol(res) != 5) return(errfun(paste0('Timepoint ',t,' did not have more observations than predictors; the ANOVA is unidentifiable')))

@@ -17,6 +17,8 @@ permu.test(formula, data, subset = NULL, parallel = FALSE,
 \item{parallel}{Whether to parallelize the permutation testing using plyr's `parallel' option. Needs some additional set-up; see the plyr documentation.}
 
 \item{progress}{A plyr `.progress' bar name, see the plyr documentation. Ignored if parallel=TRUE.}
+
+\item{...}{Other arguments to be passed to `aovp'.}
 }
 \value{
 A dataframe of p-values.
