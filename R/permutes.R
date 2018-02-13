@@ -25,7 +25,9 @@ permu.test <- function (formula,data,subset=NULL,parallel=FALSE,progress='text',
 		library(lmPerm) #necessary because this function will be run on cluster nodes (if parallel=T), which do not automatically know to import this dependency
 		test <- tryCatch(do.call('aovp',c(list(formula,data[timepoints == t,],settings=F),dots)),error=errfun)
 		if (all(class(test) == 'data.frame')) return(test) #permutation test failed with an error
-		ldply(summary(test),function (res) {
+		summary <- summary(test)
+		if (length(summary) == 1) summary <- summary[[1]] #univariate outcome
+			ret <- ldply(summary(test),function (res) {
 			if (ncol(res) != 5) return(errfun(paste0('Timepoint ',t,' did not have more observations than predictors; the ANOVA is unidentifiable')))
 			nr <- nrow(res)
 			factors <- rownames(res)[-nr] #the last row is the residuals
@@ -44,9 +46,8 @@ permu.test <- function (formula,data,subset=NULL,parallel=FALSE,progress='text',
 			data.frame(timepoint=t,factor=factors,F=Fval,p=pvals,w2=w2,stringsAsFactors=F)
 		},.id='measure')
 	},.id=NULL,.parallel=parallel,.progress=ifelse(parallel,'none',progress))
-	if (ncol(ret) < 6) ret <- cbind(measure=as.character(formula[[2]]),ret,stringsAsFactors=F) #ldply will not have generated the first column if the outcome was univariate
+	if (is.null(ret$measure)) ret <- cbind(as.character(formula[[2]]),ret) else ret$measure <- sub('^ Response ','',ret$measure)
 	colnames(ret)[2] <- timepoint.var
-	ret$measure <- sub('^ Response ','',ret$measure)
 	ret$factor <- sub(' +$','',ret$factor)
 	class(ret) <- c('permutes','data.frame')
 	ret
