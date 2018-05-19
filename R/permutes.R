@@ -11,7 +11,7 @@
 permu.test <- function (formula,data,subset=NULL,parallel=FALSE,progress='text',...) {
 	errfun <- function (e) {
 		warning(e)
-		return(data.frame(timepoint=NA,factor=NA,p=NA,w2=NA))
+		data.frame(timepoint=NA,factor=NA,p=NA,w2=NA)
 	}
 	if (formula[[1]] != '~') stop("Invalid formula (first operator is not '~')")
 	indep <- formula[[3]]
@@ -22,8 +22,8 @@ permu.test <- function (formula,data,subset=NULL,parallel=FALSE,progress='text',
 	timepoints <- data[,timepoint.var]
 	dots <- list(...)
 	ret <- adply(sort(unique(timepoints)),1,function (t) {
-		library(lmPerm) #necessary because this function will be run on cluster nodes (if parallel=T), which do not automatically know to import this dependency
-		test <- tryCatch(do.call('aovp',c(list(formula,data[timepoints == t,],settings=F),dots)),error=errfun)
+		fun <- lmPerm::aovp #needs to be referred to by namespace in case we are running on a cluster node that has not loaded lmPerm
+		test <- tryCatch(do.call(fun,c(list(formula,data[timepoints == t,],settings=F),dots)),error=errfun)
 		if (all(class(test) == 'data.frame')) return(test) #permutation test failed with an error
 		summary <- summary(test)
 		if (length(summary) == 1) summary <- summary[[1]] #univariate outcome

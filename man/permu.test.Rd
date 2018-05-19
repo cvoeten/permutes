@@ -5,7 +5,7 @@
 \title{Permutation tests for time series data.}
 \usage{
 permu.test(formula, data, subset = NULL, parallel = FALSE,
-  progress = "text")
+  progress = "text", ...)
 }
 \arguments{
 \item{formula}{A formula of the following form: `outcome ~ predictors | timepoint variables'. Multivariate outcomes (e.g. 32 EEG electrodes) are supported; use `cbind(Fp1,Fp2,etc) ~ predictors | timepoint'.}
