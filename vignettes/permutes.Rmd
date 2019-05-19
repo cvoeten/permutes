@@ -1,6 +1,6 @@
 ---
 title: "Analyzing time series data using the 'permutes' package"
-author: "Cesko Voeten"
+author: "Cesko C.\ Voeten"
 date: "17 May 2018"
 bibliography: bibliography.bib
 csl: apa.csl
@@ -138,8 +138,8 @@ plot(perms)
 From this plot, the effects look to be relatively robust at, indeed, the frontal and central regions. As a next step, we should determine the temporal window with more precision. A naive possibility would be to take the mean of the $F$ values at frontal and central sites, and to define the window as the interval where these values exceed a certain threshold. This, however, falls exactly into the trap of the Multiple Comparisons Problem discussed in @marisoostenveld. Instead, we should consider the permutation $p$-values, which importantly do not have a direct relationship with the $F$ values obtained from the repeated ANOVAs. Thus, our cluster statistic will be an aggregate $p$-value obtained from the frontal and central electrodes. We can visualize the temporal distribution of this cluster statistic by plotting it as a function of time, and follow @marisoostenveld in determining a sensible cut-off point to determine our window.
 
 ```{r agg}
-perms2 <- perms[perms$measure %in% .(Fp1,AF3,F7,F3,FC1,FC5,C3,CP1,CP5,CP6,CP2,C4,FC6,FC2,
-	F4,F8,AF4,Fp2,Fz),]
+perms2 <- perms[perms$measure %in% c('Fp1','AF3','F7','F3','FC1','FC5','C3','CP1',
+	'CP5','CP6','CP2','C4','FC6','FC2','F4','F8','AF4','Fp2','Fz'),]
 perms2$measure <- 'Aggregate'
 perms2 <- aggregate(. ~ measure + time + factor,perms2,mean)
 plot(perms2$time,perms2$p)
@@ -178,8 +178,8 @@ part <- MMN %>%
 		AF3=5,F7=2,F3=4,FC1=3,FC5=1,T7=8,C3=8,CP1=11,CP5=9,P7=10,P3=12,Pz=7,PO3=13,O1=14,
 		Oz=7,O2=6,PO4=5,P4=4,P8=2,CP6=1,CP2=3,C4=8,T8=8,FC6=9,FC2=11,F4=12,F8=10,AF4=13,
 		Fp2=14,Fz=15,Cz=8)) %>%
-	filter(electrode %in% .(Fp1,AF3,F7,F3,FC1,FC5,C3,CP1,CP5,CP6,CP2,C4,FC6,FC2,F4,F8,AF4,
-		Fp2,Fz),complete.cases(.))
+	filter(electrode %in% c('Fp1','AF3','F7','F3','FC1','FC5','C3','CP1','CP5','CP6','CP2',
+		'C4','FC6','FC2','F4','F8','AF4',' Fp2','Fz'), complete.cases(.))
 ```
 
 Generalized additive mixed models work by assuming that a user-specified set of predictors can be modeled by a user-specified smooth type. As a simple (and rather pointless) example, consider a one-dimensional linear smooth of a hypothetical independent variable $x$ whose values $x_{1\dots 10}$ are the numbers one to ten and whose true effect on the response is to increase it by $\mathcal{N}(3x,1)$. The generalized additive mixed model would fit this effect in two places. First of all, it will perform a smooth-specific transformation to the data points $x_{1\dots 10}$ and store the result as a predictor in $X$. In our example, the smooth is linear (and is hence not really a smooth at all), so this will just result in a column containing the numbers one to ten. This models the fixed part of the smooth; in our example, this effect will be fitted as $\hat{\beta} = 3$. It will also add the same column to $Z$, modeling the wiggly part of the smooth; for our example, its variance should be estimated as $1$.
