@@ -21,13 +21,13 @@ permu.test <- function (formula,data,subset=NULL,parallel=FALSE,progress='text',
 	if (!is.null(subset)) data <- data[subset,]
 	timepoints <- data[,timepoint.var]
 	dots <- list(...)
-	ret <- adply(sort(unique(timepoints)),1,function (t) {
+	ret <- plyr::adply(sort(unique(timepoints)),1,function (t) {
 		fun <- lmPerm::aovp #needs to be referred to by namespace in case we are running on a cluster node that has not loaded lmPerm
 		test <- tryCatch(do.call(fun,c(list(formula,data[timepoints == t,],settings=F),dots)),error=errfun)
 		if (all(class(test) == 'data.frame')) return(test) #permutation test failed with an error
 		summary <- summary(test)
 		if (length(summary) == 1) summary <- summary[[1]] #univariate outcome
-			ret <- ldply(summary(test),function (res) {
+		ret <- plyr::ldply(summary(test),function (res) {
 			if (ncol(res) != 5) return(errfun(paste0('Timepoint ',t,' did not have more observations than predictors; the ANOVA is unidentifiable')))
 			nr <- nrow(res)
 			factors <- rownames(res)[-nr] #the last row is the residuals
