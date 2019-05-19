@@ -7,6 +7,31 @@
 #' @param ... Other arguments to be passed to `aovp'.
 #' @return A dataframe of p-values.
 #' @import plyr lmPerm
+#' @examples
+#' \donttest{
+#' # EEG data example using the MMN dataset
+#' 
+#' # Run permutation tests on all electrodes and timepoints, reporting p-values for the three
+#' # manipulated factors
+#' perms <- permu.test(cbind(Fp1,AF3,F7,F3,FC1,FC5,C3,CP1,CP5,P7,P3,Pz,PO3,O1,Oz,O2,PO4,P4,P8,CP6,CP2,
+#'                                      C4,FC6,FC2,F4,F8,AF4,Fp2,Fz,Cz) ~ dev*session | time,data=MMN)
+#' 
+#' # Run the tests in parallel on two CPU threads
+#' # first, set up the parallel backend
+#' library(doParallel)
+#' cl <- makeCluster(2)
+#' registerDoParallel(cl)
+#' perms <- permu.test(cbind(Fp1,AF3,F7,F3,FC1,FC5,C3,CP1,CP5,P7,P3,Pz,PO3,O1,Oz,O2,PO4,P4,P8,CP6,CP2,
+#'                        C4,FC6,FC2,F4,F8,AF4,Fp2,Fz,Cz) ~ dev*session | time,data=MMN,parallel=TRUE)
+#' stopCluster(cl)
+#' 
+#' # Plot the results
+#' plot(perms)
+#' }
+#' \dontshow{
+#' perms <- permu.test(Fp1 ~ dev*session | time,data=MMN[MMN$time > 200 & MMN$time < 205,])
+#' perms <- permu.test(cbind(Fp1,Fp2) ~ dev*session | time,data=MMN[MMN$time > 200 & MMN$time < 205,])
+#' }
 #' @export
 permu.test <- function (formula,data,subset=NULL,parallel=FALSE,progress='text',...) {
 	errfun <- function (e) {
@@ -46,7 +71,7 @@ permu.test <- function (formula,data,subset=NULL,parallel=FALSE,progress='text',
 			data.frame(timepoint=t,factor=factors,F=Fval,p=pvals,w2=w2,stringsAsFactors=F)
 		},.id='measure')
 	},.id=NULL,.parallel=parallel,.progress=ifelse(parallel,'none',progress))
-	if (is.null(ret$measure)) ret <- cbind(as.character(formula[[2]]),ret) else ret$measure <- sub('^ Response ','',ret$measure)
+	if (is.null(ret$measure)) ret <- cbind(measure=as.character(formula[[2]]),ret) else ret$measure <- sub('^ Response ','',ret$measure)
 	colnames(ret)[2] <- timepoint.var
 	ret$factor <- sub(' +$','',ret$factor)
 	class(ret) <- c('permutes','data.frame')
@@ -62,7 +87,7 @@ permu.test <- function (formula,data,subset=NULL,parallel=FALSE,progress='text',
 #' @import ggplot2 viridis
 #' @export
 plot.permutes <- function (x,type=c('F','p','w2'),breaks=NULL,...) {
-	if (!'data.frame' %in% class(x)) stop("Error: 'x' is not a dataframe")
+	if (!'data.frame' %in% class(x)) stop("Error: 'x' is not a data frame")
 	data <- x
 	p <- ggplot(data=data,aes_string(x=colnames(data)[2],y=colnames(data)[1]))
 	plot <- type[1]

@@ -4,7 +4,8 @@
 \alias{plot.permutes}
 \title{Create a heatmap of the results of permutation testing.}
 \usage{
-\method{plot}{permutes}(x, type = c("F", "p", "w2"), breaks = NULL, ...)
+\method{plot}{permutes}(x, type = c("F", "p", "w2"), breaks = NULL,
+  ...)
 }
 \arguments{
 \item{x}{Output of permu.test. You may want to subset it if you want to simulate zooming in.}
