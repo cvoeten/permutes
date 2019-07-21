@@ -4,24 +4,26 @@
 \alias{permu.test}
 \title{Permutation tests for time series data.}
 \usage{
-permu.test(formula, data, subset = NULL, parallel = FALSE,
-  progress = "text", ...)
+permu.test(formula, data, subset = NULL, type = "anova",
+  parallel = FALSE, progress = "text", ...)
 }
 \arguments{
-\item{formula}{A formula of the following form: `outcome ~ predictors | timepoint variables'. Multivariate outcomes (e.g. 32 EEG electrodes) are supported; use `cbind(Fp1,Fp2,etc) ~ predictors | timepoint'.}
+\item{formula}{A formula of the following form: \code{outcome ~ predictors | timepoint variable}. Multivariate outcomes (e.g. 32 EEG electrodes) are supported; use \code{cbind(Fp1,Fp2,etc) ~ predictors | timepoint}.}
 
 \item{data}{The dataset referencing these predictors.}
 
 \item{subset}{If specified, will only analyze the specified subset of the data.}
 
-\item{parallel}{Whether to parallelize the permutation testing using plyr's `parallel' option. Needs some additional set-up; see the plyr documentation.}
+\item{type}{One of \code{'anova'} or \code{'regression'}. The former runs an analysis of variance and returns F-values and p-values based on sums of squares. The latter runs a linear-regression analysis and returns t-values and p-values based on individual effects. When running ANOVA, it is advised to use orthogonal predictors, as type III sums of squares are used.}
 
-\item{progress}{A plyr `.progress' bar name, see the plyr documentation. Ignored if parallel=TRUE.}
+\item{parallel}{Whether to parallelize the permutation testing using plyr's \code{parallel} option. Needs some additional set-up; see the plyr documentation.}
 
-\item{...}{Other arguments to be passed to `aovp'.}
+\item{progress}{A plyr \code{.progress} bar name, see the plyr documentation. Ignored if parallel=TRUE.}
+
+\item{...}{Other arguments to be passed to \code{aovp}.}
 }
 \value{
-A dataframe of p-values.
+A data frame.
 }
 \description{
 Permutation tests for time series data.
@@ -32,23 +34,30 @@ Permutation tests for time series data.
 
 # Run permutation tests on all electrodes and timepoints, reporting p-values for the three
 # manipulated factors
-perms <- permu.test(cbind(Fp1,AF3,F7,F3,FC1,FC5,C3,CP1,CP5,P7,P3,Pz,PO3,O1,Oz,O2,PO4,P4,P8,CP6,CP2,
-                                     C4,FC6,FC2,F4,F8,AF4,Fp2,Fz,Cz) ~ dev*session | time,data=MMN)
+perms <- permu.test(cbind(Fp1,AF3,F7,F3,FC1,FC5,C3,CP1,CP5,P7,P3,Pz,PO3,O1,Oz,O2,PO4,P4,
+               P8,CP6,CP2,C4,FC6,FC2,F4,F8,AF4,Fp2,Fz,Cz) ~ dev*session | time,data=MMN)
 
 # Run the tests in parallel on two CPU threads
 # first, set up the parallel backend
 library(doParallel)
 cl <- makeCluster(2)
 registerDoParallel(cl)
-perms <- permu.test(cbind(Fp1,AF3,F7,F3,FC1,FC5,C3,CP1,CP5,P7,P3,Pz,PO3,O1,Oz,O2,PO4,P4,P8,CP6,CP2,
-                       C4,FC6,FC2,F4,F8,AF4,Fp2,Fz,Cz) ~ dev*session | time,data=MMN,parallel=TRUE)
+perms <- permu.test(cbind(Fp1,AF3,F7,F3,FC1,FC5,C3,CP1,CP5,P7,P3,Pz,PO3,O1,Oz,O2,PO4,P4,
+ P8,CP6,CP2,C4,FC6,FC2,F4,F8,AF4,Fp2,Fz,Cz) ~ dev*session | time,data=MMN,parallel=TRUE)
 stopCluster(cl)
 
 # Plot the results
 plot(perms)
+
+# t-values instead of F-values
+perms <- permu.test(cbind(Fp1,AF3,F7,F3,FC1,FC5,C3,CP1,CP5,P7,P3,Pz,PO3,O1,Oz,O2,PO4,P4,
+               P8,CP6,CP2,C4,FC6,FC2,F4,F8,AF4,Fp2,Fz,Cz) ~ dev*session | time,data=MMN,
+                                                                      type='regression')
 }
 \dontshow{
 perms <- permu.test(Fp1 ~ dev*session | time,data=MMN[MMN$time > 200 & MMN$time < 205,])
 perms <- permu.test(cbind(Fp1,Fp2) ~ dev*session | time,data=MMN[MMN$time > 200 & MMN$time < 205,])
+perms <- permu.test(Fp1 ~ dev*session | time,data=MMN[MMN$time > 200 & MMN$time < 205,],type='regression')
+perms <- permu.test(cbind(Fp1,Fp2) ~ dev*session | time,data=MMN[MMN$time > 200 & MMN$time < 205,],type='regression')
 }
 }

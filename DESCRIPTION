@@ -1,6 +1,6 @@
 Package: permutes
 Title: Permutation Tests for Time Series Data
-Version: 0.1.1
+Version: 1.0
 Authors@R: person(c("Cesko", "C."), "Voeten", email = "cvoeten@gmail.com", role = c("aut", "cre"))
 Author: Cesko C. Voeten [aut, cre]
 Maintainer: Cesko C. Voeten <cvoeten@gmail.com>
@@ -10,11 +10,11 @@ Description: Helps you determine the analysis window to use when analyzing dense
     where significance of an effect begins and ends, and the results can be plotted in various
     types of heatmap for reporting.
 Depends:
-    R (>= 2.10), lmPerm
+    R (>= 2.10)
 Imports:
-    plyr, ggplot2, viridis
+    ggplot2, lmPerm, plyr, viridis
 Suggests:
-    doParallel, dplyr, tidyr, knitr
+    doParallel, dplyr, tidyr, knitr, rmarkdown
 License: FreeBSD
 Encoding: UTF-8
 LazyData: true
