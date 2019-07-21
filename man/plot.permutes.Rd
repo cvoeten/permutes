@@ -4,20 +4,20 @@
 \alias{plot.permutes}
 \title{Create a heatmap of the results of permutation testing.}
 \usage{
-\method{plot}{permutes}(x, type = c("F", "p", "w2"), breaks = NULL,
-  ...)
+\method{plot}{permutes}(x, type = c("F", "t", "p", "w2", "beta"),
+  breaks = NULL, ...)
 }
 \arguments{
 \item{x}{Output of permu.test. You may want to subset it if you want to simulate zooming in.}
 
-\item{type}{The quantity to plot; one of 'F' (default), 'p', or 'w2' (omega squared).}
+\item{type}{The quantity to plot. For ANOVA, the options are \code{'F'} (default), \code{'p'}, or \code{'w2'} (omega squared). For regression, the options are \code{'t'} (default), \code{'beta'}, or \code{'p'}. If multiple options are presented, only the first option found in the data frame is used.}
 
 \item{breaks}{The granularity of the labels of the x axis. Pass `unique(data[,2])' to get a tick for every timepoint. Combine this trick with subsetting of your dataset, and perhaps averaging over all your dependent variables, to `zoom in' on your data to help you determine precisely where significance begins and stops to occur.}
 
 \item{...}{Other arguments, which will be ignored (the ellipsis is provided for consistency with the generic plot() method).}
 }
 \value{
-A ggplot2 object containing a heatmap of p-values.
+A ggplot2 object.
 }
 \description{
 Create a heatmap of the results of permutation testing.
