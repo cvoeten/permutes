@@ -1,7 +1,7 @@
 ---
 title: "Analyzing time series data using the 'permutes' package"
 author: "Cesko C.\ Voeten"
-date: "17 May 2018"
+date: "17 July 2019"
 bibliography: bibliography.bib
 csl: apa.csl
 output: pdf_document
@@ -131,7 +131,7 @@ Based on visual inspection, the plot suggests two windows: one window located ar
 
 ```{r es}
 head(perms) #take a look at the data structure
-perms[perms$p >= .05,c('F','w2')] <- NA
+perms[perms$p >= .05,'F'] <- NA
 plot(perms)
 ```
 
