@@ -1,6 +1,6 @@
 Package: permutes
 Title: Permutation Tests for Time Series Data
-Version: 1.0
+Version: 2.0
 Authors@R: person(c("Cesko", "C."), "Voeten", email = "cvoeten@gmail.com", role = c("aut", "cre"))
 Author: Cesko C. Voeten [aut, cre]
 Maintainer: Cesko C. Voeten <cvoeten@gmail.com>
@@ -12,13 +12,13 @@ Description: Helps you determine the analysis window to use when analyzing dense
 Depends:
     R (>= 2.10)
 Imports:
-    ggplot2, lmPerm, plyr, viridis
+    plyr
 Suggests:
-    doParallel, dplyr, tidyr, knitr, rmarkdown
+    buildmer, doParallel, dplyr, ggplot2, lmPerm, lme4, permuco, pbkrtest, tidyr, knitr, rmarkdown, viridis
 License: FreeBSD
 Encoding: UTF-8
 LazyData: true
-RoxygenNote: 6.1.1
+RoxygenNote: 7.1.1
 BugReports: https://github.com/cvoeten/permutes/issues
 VignetteBuilder: knitr
 NeedsCompilation: no
