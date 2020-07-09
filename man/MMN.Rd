@@ -4,7 +4,9 @@
 \name{MMN}
 \alias{MMN}
 \title{EEG data from Jager (in prep.). See the vignette for details.}
-\format{A standard data frame.}
+\format{
+A standard data frame.
+}
 \usage{
 data(MMN)
 }
