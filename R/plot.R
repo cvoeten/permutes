@@ -24,7 +24,7 @@ plot.permutes <- function (x,type=c('LRT','F','t','p.corr','p','w2','beta'),brea
 
 	scale <- if (is.numeric(x[,2])) ggplot2::scale_x_continuous else ggplot2::scale_x_discrete
 	p <- ggplot2::ggplot(data=x,ggplot2::aes_string(x=colnames(x)[2],y=colnames(x)[1]))
-	p <- p + ggplot2::geom_tile(ggplot2::aes_string(fill=plot)) + viridis::scale_fill_viridis(option='plasma',direction=if (plot == 'p') -1 else 1)
+	p <- p + ggplot2::geom_tile(ggplot2::aes_string(fill=plot,color=plot)) + viridis::scale_fill_viridis(option='plasma',direction=if (plot == 'p') -1 else 1) + viridis::scale_color_viridis(option='plasma',direction=if (plot == 'p') -1 else 1)
 	p <- p + ggplot2::theme(panel.background=ggplot2::element_blank(),panel.grid.major=ggplot2::element_blank(),panel.grid.minor=ggplot2::element_blank())
 	p <- p + if (is.null(breaks)) scale(expand=c(0,0)) else scale(expand=c(0,0),breaks=breaks)
 	p <- p + if (length(unique(x$factor)) == 1) ggplot2::scale_y_discrete(expand=c(0,0)) else ggplot2::facet_wrap(~factor,ncol=1)
