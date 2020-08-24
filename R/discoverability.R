@@ -1,8 +1,7 @@
 #' Cluster-based permutation tests for time series data, based on mixed-effects models or other \code{buildmer} models. This is an alias for \code{clusterperm.lmer}, except that random effects are explicily disallowed.
 #' @param formula A normal formula without random effects. This can also be a buildmer terms object, provided \code{dep} is passed in \code{buildmerControl}. Only a single response variable is supported. For binomial models, the \code{cbind} syntax is not supported; please convert your dependent variable to a proportion and use weights instead.
 #' @param data The data.
-#' @param weights Any prior case weights.
-#' @param offset Any prior offset term.
+#' @template weightsoffset
 #' @template buildmer1
 #' @param progress A plyr \code{.progress} bar name, see the plyr documentation. If not \code{'none'} while \code{parallel=TRUE}, an ad-hoc solution will be used, which will be visible if the cluster nodes were created with \code{outfile=''}.
 #' @template buildmer2
