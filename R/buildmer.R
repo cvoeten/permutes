@@ -1,8 +1,7 @@
 #' Cluster-based permutation tests for time series data, based on mixed-effects models or other \code{buildmer} models.
 #' @param formula A normal formula, possibly using \code{lme4}-style random effects. This can also be a buildmer terms object, provided \code{dep} is passed in \code{buildmerControl}. Only a single response variable is supported. For binomial models, the \code{cbind} syntax is not supported; please convert your dependent variable to a proportion and use weights instead.
 #' @param data The data.
-#' @param weights Any prior case weights.
-#' @param offset Any prior offset term.
+#' @template weightsoffset
 #' @param series.var A one-sided formula giving the variable grouping the time series.
 #' @template buildmer1
 #' @param parallel Whether to parallelize the permutation testing using plyr's \code{parallel} option. Needs some additional set-up; see the plyr documentation.
@@ -37,9 +36,15 @@ clusterperm.lmer <- function (formula,data=NULL,family=gaussian(),weights=NULL,o
 		offset <- rep(0,length(data[[dep]]))
 	}
 	ix <- !is.na(data[[dep]]) & !is.na(weights) & !is.na(offset)
-	data    <- data[ix,]
-	weights <- weights[ix]
-	offset  <- offset[ix]
+	data <- data[ix,]
+	if ('.weights' %in% names(data)) {
+		stop("Please remove/rename the column named '.weights' from your data; this column name is used internally by permutes")
+	}
+	if ('.offset' %in% names(data)) {
+		stop("Please remove/rename the column named '.offset' from your data; this column name is used internally by permutes")
+	}
+	data$.weights <- weights[ix]
+	data$.offset <- offset[ix]
 	series.var <- as.character(series.var[2])
 	timepoints <- data[[series.var]]
 	if (is.null(timepoints)) {
@@ -52,7 +57,7 @@ clusterperm.lmer <- function (formula,data=NULL,family=gaussian(),weights=NULL,o
 		family <- family()
 	}
 
-	wrap <- function (t,fun,formula,data,family,weights,offset,timepoints,buildmerControl,nperm,type,verbose) {
+	wrap <- function (t,fun,formula,data,family,timepoints,buildmerControl,nperm,type,verbose) {
 		errfun <- function (e) {
 			# error in permutation-test function, return an empty result for this timepoint
 			warning(e)
@@ -60,9 +65,7 @@ clusterperm.lmer <- function (formula,data=NULL,family=gaussian(),weights=NULL,o
 		}
 		ix <- timepoints == t
 		data <- data[ix,]
-		weights <- weights[ix]
-		offset <- offset[ix]
-		model <- tryCatch(fun(t,formula,data,family,weights,offset,timepoints,buildmerControl,nperm,type,verbose),error=errfun)
+		model <- tryCatch(fun(t,formula,data,family,timepoints,buildmerControl,nperm,type,verbose),error=errfun)
 	}
 	if (parallel) {
 		verbose <- progress != 'none'
@@ -70,14 +73,19 @@ clusterperm.lmer <- function (formula,data=NULL,family=gaussian(),weights=NULL,o
 	} else {
 		verbose <- FALSE
 	}
-	perms <- plyr::alply(sort(unique(timepoints)),1,wrap,fit.buildmer,formula,data,family,weights,offset,timepoints,buildmerControl,nperm,type,verbose,.parallel=parallel,.progress=progress,.inform=FALSE)
-	df <- plyr::ldply(perms,`[[`,'df',.id=series.var)
-	perm <- lapply(perms,`[[`,'perms')
+	results <- plyr::alply(sort(unique(timepoints)),1,wrap,fit.buildmer,formula,data,family,timepoints,buildmerControl,nperm,type,verbose,.parallel=parallel,.progress=progress,.inform=FALSE)
+	terms <- lapply(results,`[[`,'terms')
+	perms <- lapply(results,`[[`,'perms')
+	df <- plyr::ldply(results,`[[`,'df',.id=series.var)
+	for (i in seq_along(perms)) {
+		# alply drops names for some very strange reason, so we saved them in the 'terms' element and restore them here
+		names(perms[[i]]) <- terms[[i]]
+	}
 
 	df$p <- df$cluster.mass <- df$cluster <- NA
 	# We need to invert the double-nested list from perm$time$factor to perm$factor$time
 	for (x in unique(df$factor)) {
-		this.factor <- lapply(perm,`[[`,x) #all timepoints for this one factor
+		this.factor <- lapply(perms,`[[`,x) #all timepoints for this one factor
 		df.LRT <- max(sapply(this.factor,function (x) x$df),na.rm=TRUE) #these will all be the same (because they are the same model comparison and these are ndf), except possibly in cases of rank-deficiency, hence why max is correct
 		thresh <- stats::qchisq(.95,df.LRT)
 		samp   <- sapply(this.factor,function (x) c(x$LRT,x$perms)) #columns are time, rows are samples
@@ -89,12 +97,12 @@ clusterperm.lmer <- function (formula,data=NULL,family=gaussian(),weights=NULL,o
 		df <- cbind(measure=as.character(dep,df),df)
 	}
 	colnames(df)[2] <- series.var
-	attr(df,'perms') <- perms
+	attr(df,'permutations') <- results
 	class(df) <- c('permutes','data.frame')
 	df
 }
 
-fit.buildmer <- function (t,formula,data,family,weights,offset,timepoints,buildmerControl,nperm,type,verbose) {
+fit.buildmer <- function (t,formula,data,family,timepoints,buildmerControl,nperm,type,verbose) {
 	buildmerControl$direction <- 'order'
 	if (is.null(buildmerControl$quiet)) {
 		buildmerControl$quiet <- TRUE
@@ -140,7 +148,7 @@ fit.buildmer <- function (t,formula,data,family,weights,offset,timepoints,buildm
 		terms <- terms[terms != '1']
 	}
 
-	bm <- buildmer::buildmer(formula=formula,data=data,family=family,weights=weights,offset=offset,buildmerControl=buildmerControl)
+	bm <- buildmer::buildmer(formula=formula,data=data,family=family,buildmerControl=buildmerControl,weights=.weights,offset=.offset)
 	perms <- lapply(terms,function (term) {
 		if (verbose) {
 			time <- Sys.time()
@@ -149,7 +157,7 @@ fit.buildmer <- function (t,formula,data,family,weights,offset,timepoints,buildm
 
 		# https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3883440/ propose that, to test a random effect:
 		# 1. Get the marginal errors calculated by the alternative model
-		# 2. To account for these errors' non-independence: weight the errors by the inverse of the random-effects correlation matrix
+		# 2. To account for these errors' non-independence: weigh the errors by the inverse of the random-effects correlation matrix
 			# V0 = sigma^2_b_1_0 * ZtZ + sigma^2_e_0I
 		# 3. Weigh by Ut0^-1, where U0 = chol(V0)
 			# lme4 parameterizes sigma^2_b_1_0 Z = Z Lambda_theta and we really want their transpose
@@ -184,13 +192,16 @@ fit.buildmer <- function (t,formula,data,family,weights,offset,timepoints,buildm
 		# 2/3. Random effects have already been partialed out, so these are independent and exchangeable
 		# 4/5. Permute them and estimate a null and alternative model on the permuted data
 		# The offset has been partialed out already, so will be ignored
-		fit <- if (bm@p$is.gaussian) function (formula,weights) lm(formula,weights=weights) else function (formula,weights) suppressWarnings(glm(formula,family=family,weights=weights))
+		fit <- if (bm@p$is.gaussian) function (formula,data) lm(formula,data,weights=.weights) else function (formula,data) suppressWarnings(glm(formula,family=family,data=data,weights=.weights))
 		perms <- lapply(1:nperm,function (i) try({
 			s <- sample(seq_along(e))
-			y <- family$linkinv(e[s])
-			weights <- weights[s]
-			m1 <- fit(y ~ X,weights)
-			m0 <- fit(y ~ 1,weights)
+			data <- list(
+				y = family$linkinv(e[s]),
+				X = X,
+				.weights = data$.weights[s]
+			)
+			m1 <- fit(y ~ X,data)
+			m0 <- fit(y ~ 1,data)
 			as.numeric(2*(logLik(m1)-logLik(m0)))
 		},silent=TRUE))
 		bad <- sapply(perms,inherits,'try-error')
@@ -200,9 +211,10 @@ fit.buildmer <- function (t,formula,data,family,weights,offset,timepoints,buildm
 		perms <- unlist(perms)
 
 		# Wrap up
-		y   <- family$linkinv(e)
-		ll1 <- logLik(fit(y ~ X,weights))
-		ll0 <- logLik(fit(y ~ 1,weights))
+		data$y <- family$linkinv(e)
+		data$X <- X
+		ll1 <- logLik(fit(y ~ X,data))
+		ll0 <- logLik(fit(y ~ 1,data))
 		LRT <- as.numeric(2*(ll1-ll0))
 		df  <- attr(ll1,'df') - attr(ll0,'df')
 		if (verbose) {
@@ -230,7 +242,7 @@ fit.buildmer <- function (t,formula,data,family,weights,offset,timepoints,buildm
 		tname <- if (bm@p$is.gaussian) 't' else 'z'
 		df <- data.frame(factor=unname(terms),LRT=LRT,beta=unname(beta),t=unname(beta/se))
 		colnames(df)[4] <- tname
-		list(df=df,perms=perms)
+		list(terms=terms,perms=perms,df=df)
 	} else {
 		if (inherits(bm@model,'gam')) {
 			anova <- anova(bm@model) #is Type III
@@ -259,15 +271,14 @@ fit.buildmer <- function (t,formula,data,family,weights,offset,timepoints,buildm
 		}
 		df <- data.frame(factor=unname(terms),LRT=LRT,F=unname(Fvals))
 		colnames(df)[3] <- Fname
-		list(df=df,perms=perms)
+		list(terms=terms,perms=perms,df=df)
 	}
 }
 
 #' A general permutation test for mixed-effects model or other \code{buildmer} models.
 #' @param formula A normal formula, possibly using \code{lme4}-style random effects. This can also be a buildmer terms object, provided \code{dep} is passed in \code{buildmerControl}. Only a single response variable is supported. For binomial models, the \code{cbind} syntax is not supported; please convert your dependent variable to a proportion and use weights instead.
 #' @param data The data.
-#' @param weights Any prior case weights.
-#' @param offset Any prior offset term.
+#' @template weightsoffset
 #' @template buildmer1
 #' @param progress Logical indicating whether to print progress messages during the permutation testing.
 #' @template buildmer2
@@ -297,16 +308,16 @@ perm.lmer <- function (formula,data=NULL,family=gaussian(),weights=NULL,offset=N
 		ix <- !is.na(data[[dep]])
 		data <- data[ix,]
 		if (length(weights) == length(ix)) {
-			weights <- weights[ix]
+			data$.weights <- weights[ix]
 		} else if (all(is.null(weights))) {
-			weights <- rep(1,length(ix))
+			data$.weights <- rep(1,length(ix))
 		} else {
 			stop('Weights have been provided, but are not of the same length as the data')
 		}
 		if (length(offset) == length(ix)) {
-			offset <- offset[ix]
+			data$.offset <- offset[ix]
 		} else if (all(is.null(offset))) {
-			offset <- rep(0,length(ix))
+			data$.offset <- rep(0,length(ix))
 		} else {
 			stop('Offsets have been provided, but are not of the same length as the data')
 		}
@@ -320,10 +331,10 @@ perm.lmer <- function (formula,data=NULL,family=gaussian(),weights=NULL,offset=N
 		family <- family()
 	}
 
-	bm <- buildmer::buildmer(formula=formula,data=data,family=family,weights=weights,offset=offset,buildmerControl=buildmerControl)
+	bm <- buildmer::buildmer(formula=formula,data=data,family=family,buildmerControl=buildmerControl)
 	bm@anova <- bm@summary <- NULL
 	formula <- formula(bm@model) #in case of rank-deficiency
-	perm <- fit.buildmer(1,formula,data,family,weights,offset,1,buildmerControl,nperm,type,progress)
+	perm <- fit.buildmer(1,formula,data,family,1,buildmerControl,nperm,type,progress)
 
 	LRTs  <- sapply(perm$perms,function (x) x$LRT)
 	pvals <- sapply(seq_along(LRTs),function (i) mean(perm$perms[[i]]$perms > LRTs[i]))
