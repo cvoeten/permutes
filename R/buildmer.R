@@ -122,15 +122,15 @@ fit.buildmer <- function (t,formula,data,family,timepoints,buildmerControl,nperm
 	terms <- setNames(,formula$term[fixed])
 
 	if (type == 'regression') {
-		env <- environment(formula)
 		# Convert factor terms into individual parameters
+		env <- environment(formula)
 		for (term in terms) {
 			if (is.factor(data[[term]])) {
 				X <- stats::model.matrix(stats::as.formula(paste0('~',term)),data)[,-1]
 				if (is.vector(X)) {
 					next #only one contrast
 				}
-				formula <- formula[!(formula$term == term & is.na(formula$grouping)),]
+				formula <- formula[!(formula$term == term & fixed),]
 				colnames(X) <- paste0(term,'_',colnames(X))
 				if (length(bad <- intersect(colnames(X),colnames(data)))) {
 					stop('Please rename the columns ',paste(bad,collapse=', '),' in your data')
@@ -139,13 +139,11 @@ fit.buildmer <- function (t,formula,data,family,timepoints,buildmerControl,nperm
 					data[[x]] <- X[,x] #we can't use cbind as that will drop contrasts
 				}
 				formula <- rbind(formula,data.frame(index=NA,grouping=NA,term=colnames(X),code=unname(term),block=unname(term)))
+				fixed <- is.na(formula$grouping)
 			}
 		}
 		environment(formula) <- env
-		terms <- formula$term[is.na(formula$grouping)]
-	} else {
-		# Extract factor terms, so nothing to do except to ignore the intercept
-		terms <- terms[terms != '1']
+		terms <- setNames(,formula$term[fixed])
 	}
 
 	bm <- buildmer::buildmer(formula=formula,data=data,family=family,buildmerControl=buildmerControl,weights=.weights,offset=.offset)
@@ -240,7 +238,7 @@ fit.buildmer <- function (t,formula,data,family,timepoints,buildmerControl,nperm
 			beta <- stats::coef(bm@model)
 		}
 		tname <- if (bm@p$is.gaussian) 't' else 'z'
-		df <- data.frame(factor=unname(terms),LRT=LRT,beta=unname(beta),t=unname(beta/se))
+		df <- data.frame(factor=unname(terms),LRT=unname(LRT),beta=unname(beta),t=unname(beta/se))
 		colnames(df)[4] <- tname
 		list(terms=terms,perms=perms,df=df)
 	} else {
@@ -269,7 +267,7 @@ fit.buildmer <- function (t,formula,data,family,timepoints,buildmerControl,nperm
 			Fvals[missing] <- NA
 			Fvals <- Fvals[names(terms)]
 		}
-		df <- data.frame(factor=unname(terms),LRT=LRT,F=unname(Fvals))
+		df <- data.frame(factor=unname(terms),LRT=unname(LRT),F=unname(Fvals))
 		colnames(df)[3] <- Fname
 		list(terms=terms,perms=perms,df=df)
 	}
