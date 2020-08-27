@@ -182,10 +182,10 @@ fit.buildmer <- function (t,formula,data,family,timepoints,buildmerControl,nperm
 		if (any(i <- !is.finite(B))) {
 			B[i] <- 0
 		}
-		zero <- colnames(X) %in% colnames(X.restricted)
-		X[,zero] <- 0
+		want <- colnames(X) %in% colnames(X.restricted)
+		X[,!want] <- 0
 		e <- resid(bm@model) + X %*% B
-		X <- X[,!zero]
+		X <- X[,want]
 
 		# 2/3. Random effects have already been partialed out, so these are independent and exchangeable
 		# 4/5. Permute them and estimate a null and alternative model on the permuted data
