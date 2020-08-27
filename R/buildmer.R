@@ -198,8 +198,8 @@ fit.buildmer <- function (t,formula,data,family,timepoints,buildmerControl,nperm
 				X = X,
 				.weights = data$.weights[s]
 			)
-			m1 <- fit(y ~ X,data)
-			m0 <- fit(y ~ 1,data)
+			m1 <- fit(y ~ 0+X,data)
+			m0 <- fit(y ~ 0,data)
 			as.numeric(2*(logLik(m1)-logLik(m0)))
 		},silent=TRUE))
 		bad <- sapply(perms,inherits,'try-error')
