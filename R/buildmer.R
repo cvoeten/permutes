@@ -172,6 +172,9 @@ fit.buildmer <- function (t,formula,data,family,timepoints,buildmerControl,nperm
 		tab.restricted <- formula[formula$term == term & is.na(formula$grouping),]
 		formula.restricted <- buildmer::build.formula(NULL,tab.restricted)
 		X.restricted <- model.matrix(formula.restricted,data)
+		if (!ncol(X.restricted)) {
+			return(list(perms=0*1:nperm,LRT=0,df=0))
+		}
 		if (inherits(bm@model,'merMod')) {
 			X <- lme4::getME(bm@model,'X')
 			B <- lme4::fixef(bm@model)
@@ -211,8 +214,8 @@ fit.buildmer <- function (t,formula,data,family,timepoints,buildmerControl,nperm
 		# Wrap up
 		data$y <- family$linkinv(e)
 		data$X <- X
-		ll1 <- logLik(fit(y ~ X,data))
-		ll0 <- logLik(fit(y ~ 1,data))
+		ll1 <- logLik(fit(y ~ 0+X,data))
+		ll0 <- logLik(fit(y ~ 0,data))
 		LRT <- as.numeric(2*(ll1-ll0))
 		df  <- attr(ll1,'df') - attr(ll0,'df')
 		if (verbose) {
