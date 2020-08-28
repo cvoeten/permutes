@@ -169,12 +169,6 @@ fit.buildmer <- function (t,formula,data,family,timepoints,buildmerControl,nperm
 		# 1. Get the marginal errors based on quantities from the alternative model
 		# These are y - XB - Zu, with the effect of interest *removed* from X
 		# It's easier for us to just take the residuals and add this effect back in, but we need to figure out its name...
-		tab.restricted <- formula[formula$term == term & is.na(formula$grouping),]
-		formula.restricted <- buildmer::build.formula(NULL,tab.restricted)
-		X.restricted <- model.matrix(formula.restricted,data)
-		if (!ncol(X.restricted)) {
-			return(list(perms=0*1:nperm,LRT=0,df=0))
-		}
 		if (inherits(bm@model,'merMod')) {
 			X <- lme4::getME(bm@model,'X')
 			B <- lme4::fixef(bm@model)
@@ -185,10 +179,29 @@ fit.buildmer <- function (t,formula,data,family,timepoints,buildmerControl,nperm
 		if (any(i <- !is.finite(B))) {
 			B[i] <- 0
 		}
-		want <- colnames(X) %in% colnames(X.restricted)
-		X[,!want] <- 0
-		e <- resid(bm@model) + X %*% B
-		X <- X[,want]
+		if (term == '1') {
+			# If it's the intercept, things are simple
+			X[colnames(X) != '(Intercept)'] <- 0
+			e <- resid(bm@model) + X %*% B
+			X <- X[,colnames(X) == '(Intercept)']
+		} else {
+			# If it's not the intercept, things are more complicated: we need to figure out the name in the model matrix
+			# Keep in the intercept because otherwise model.matrix() will not process factor levels
+			tab.restricted <- formula[formula$term %in% c('1',term) & is.na(formula$grouping),]
+			formula.restricted <- buildmer::build.formula(NULL,tab.restricted)
+			X.restricted <- model.matrix(formula.restricted,data)
+			if ('1' %in% tab.restricted$term) {
+				# Now we drop the intercept again, and we will only be left with the focal effect
+				X.restricted <- X.restricted[,-1]
+			}
+			if (!ncol(X.restricted)) {
+				return(list(perms=0*1:nperm,LRT=0,df=0))
+			}
+			want <- colnames(X) %in% colnames(X.restricted)
+			X[,!want] <- 0
+			e <- resid(bm@model) + X %*% B
+			X <- X[,want]
+		}
 
 		# 2/3. Random effects have already been partialed out, so these are independent and exchangeable
 		# 4/5. Permute them and estimate a null and alternative model on the permuted data
