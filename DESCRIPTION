@@ -14,7 +14,7 @@ Depends:
 Imports:
     plyr
 Suggests:
-    buildmer, doParallel, dplyr, ggplot2, lmPerm, lme4, permuco, pbkrtest, tidyr, knitr, rmarkdown, viridis
+    buildmer (>= 1.7.1), car, doParallel, dplyr, ggplot2, lmPerm, lme4, permuco, pbkrtest, tidyr, knitr, rmarkdown, viridis
 License: FreeBSD
 Encoding: UTF-8
 LazyData: true

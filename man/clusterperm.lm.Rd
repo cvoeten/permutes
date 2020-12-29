@@ -24,9 +24,13 @@ clusterperm.lm(
 
 \item{data}{The data.}
 
-\item{weights}{Any prior case weights.}
+\item{family}{The family.}
 
-\item{offset}{Any prior offset term.}
+\item{weights}{An optional vector of prior case weights. This vector is evaluated in the calling environment, not in the formula or data frame!}
+
+\item{offset}{An optional vector containing a prior offset term. This vector is evaluated in the calling environment, not in the formula or data frame!}
+
+\item{series.var}{A one-sided formula giving the variable grouping the time series.}
 
 \item{buildmerControl}{Options overriding the defaults in \code{buildmerControl}.}
 
@@ -34,9 +38,9 @@ clusterperm.lm(
 
 \item{type}{A character string of either \code{'anova'} or \code{'regression'}. The former runs an analysis of variance and returns F-values and p-values based on the explained variance of each factor in the design. The latter runs a linear-regression analysis and returns t-values and p-values based on individual effects. When running ANOVA, it is advised to use orthogonal predictors, as type III sums of squares are used.}
 
-\item{progress}{A plyr \code{.progress} bar name, see the plyr documentation. If not \code{'none'} while \code{parallel=TRUE}, an ad-hoc solution will be used, which will be visible if the cluster nodes were created with \code{outfile=''}.}
+\item{parallel}{Whether to parallelize the permutation testing using plyr's \code{parallel} option. Needs some additional set-up; see the plyr documentation.}
 
-\item{convOpts}{Options passed to \code{converged}.}
+\item{progress}{A plyr \code{.progress} bar name, see the plyr documentation. If not \code{'none'} while \code{parallel=TRUE}, an ad-hoc solution will be used, which will be visible if the cluster nodes were created with \code{outfile=''}.}
 }
 \value{
 A data frame.

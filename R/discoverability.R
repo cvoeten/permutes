@@ -1,13 +1,17 @@
 #' Cluster-based permutation tests for time series data, based on mixed-effects models or other \code{buildmer} models. This is an alias for \code{clusterperm.lmer}, except that random effects are explicily disallowed.
 #' @param formula A normal formula without random effects. This can also be a buildmer terms object, provided \code{dep} is passed in \code{buildmerControl}. Only a single response variable is supported. For binomial models, the \code{cbind} syntax is not supported; please convert your dependent variable to a proportion and use weights instead.
+#' @param family The family.
 #' @param data The data.
 #' @template weightsoffset
+#' @param series.var A one-sided formula giving the variable grouping the time series.
 #' @template buildmer1
+#' @param parallel Whether to parallelize the permutation testing using plyr's \code{parallel} option. Needs some additional set-up; see the plyr documentation.
 #' @param progress A plyr \code{.progress} bar name, see the plyr documentation. If not \code{'none'} while \code{parallel=TRUE}, an ad-hoc solution will be used, which will be visible if the cluster nodes were created with \code{outfile=''}.
 #' @template buildmer2
 #' @examples
 #' perms <- clusterperm.lm(Fz ~ dev*session,data=MMN,series.var=~time)
 #' @seealso clusterperm.lmer
+#' @importFrom stats gaussian
 #' @export
 clusterperm.lm <- function (formula,data=NULL,family=gaussian(),weights=NULL,offset=NULL,series.var,buildmerControl=list(direction='order',crit='LRT',quiet=TRUE,ddf='lme4'),nperm=1000,type='regression',parallel=FALSE,progress='none',...) {
 	if (type == 'regression') {
@@ -24,7 +28,7 @@ clusterperm.lm <- function (formula,data=NULL,family=gaussian(),weights=NULL,off
 		stop('Random effects detected --- please use clusterperm.lmer instead')
 	}
 	mc <- match.call()
-	e <- parent.env()
+	e <- parent.frame()
 	mc[[1]] <- clusterperm.lmer
 	eval(mc,e)
 }
