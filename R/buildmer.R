@@ -128,7 +128,7 @@ fit.buildmer <- function (t,formula,data,family,timepoints,buildmerControl,nperm
 		env <- environment(formula)
 		for (term in terms) {
 			if (is.factor(data[[term]])) {
-				X <- stats::model.matrix(stats::as.formula(paste0('~',term)),data)[,-1]
+				X <- stats::model.matrix(stats::as.formula(paste0('~',term)),data)[,-1,drop=FALSE]
 				if (is.vector(X)) {
 					next #only one contrast
 				}
@@ -195,12 +195,17 @@ fit.buildmer <- function (t,formula,data,family,timepoints,buildmerControl,nperm
 			X.restricted <- stats::model.matrix(formula.restricted,data)
 			if ('1' %in% tab.restricted$term) {
 				# Now we drop the intercept again, and we will only be left with the focal effect
-				X.restricted <- X.restricted[,-1]
+				X.restricted <- X.restricted[,-1,drop=FALSE]
 			}
 			if (!NCOL(X.restricted)) {
 				return(list(perms=0*1:nperm,LRT=0,df=0))
 			}
-			want <- colnames(X) %in% colnames(X.restricted)
+			normalnames <- function (X) { #because interaction terms may have been wickedly reordered between colnames(X) and colnames(X.restricted)
+				split <- strsplit(colnames(X),':')
+				norm <- lapply(split,sort)
+				sapply(norm,paste0,collapse=':')
+			}
+			want <- normalnames(X) %in% normalnames(X.restricted)
 			X[,!want] <- 0
 			e <- stats::resid(bm@model) + X %*% B
 			X <- X[,want]
