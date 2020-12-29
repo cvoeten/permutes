@@ -21,9 +21,11 @@ perm.lmer(
 
 \item{data}{The data.}
 
-\item{weights}{Any prior case weights.}
+\item{family}{The family.}
 
-\item{offset}{Any prior offset term.}
+\item{weights}{An optional vector of prior case weights. This vector is evaluated in the calling environment, not in the formula or data frame!}
+
+\item{offset}{An optional vector containing a prior offset term. This vector is evaluated in the calling environment, not in the formula or data frame!}
 
 \item{buildmerControl}{Options overriding the defaults in \code{buildmerControl}.}
 
@@ -32,8 +34,6 @@ perm.lmer(
 \item{type}{A character string of either \code{'anova'} or \code{'regression'}. The former runs an analysis of variance and returns F-values and p-values based on the explained variance of each factor in the design. The latter runs a linear-regression analysis and returns t-values and p-values based on individual effects. When running ANOVA, it is advised to use orthogonal predictors, as type III sums of squares are used.}
 
 \item{progress}{Logical indicating whether to print progress messages during the permutation testing.}
-
-\item{convOpts}{Options passed to \code{converged}.}
 }
 \value{
 A data frame.
@@ -50,11 +50,11 @@ The returned object provides the raw bootstrap samples in the \code{pb} attribut
 \examples{
 \donttest{
 # Testing a single EEG electrode, with random effects by participants
-perms <- perm.lmer(Fz ~ dev*session + (dev*session|ppn),data=MMN)
+perms <- clusterperm.lmer(Fz ~ dev*session + (dev*session|ppn),data=MMN)
 }
 \dontshow{
-perms <- perm.lmer(Fz ~ dev*session + (1|ppn),data=MMN[MMN$time > 200 & MMN$time < 205,],nperm=list(nsim=2),type='anova')
-perms <- perm.lmer(Fz ~ dev*session + (1|ppn),data=MMN[MMN$time > 200 & MMN$time < 205,],nperm=list(nsim=2),type='regression')
-perms <- perm.lmer(Fz ~ session*cond + (1|ppn),data=within(MMN[MMN$time > 200 & MMN$time < 205,],{session <- factor(session); cond <- factor(cond)}),nperm=list(nsim=2),type='regression')
+perms <- clusterperm.lmer(Fz ~ dev*session + (1|ppn),data=MMN[MMN$time > 200 & MMN$time < 205,],nperm=list(nsim=2),type='anova')
+perms <- clusterperm.lmer(Fz ~ dev*session + (1|ppn),data=MMN[MMN$time > 200 & MMN$time < 205,],nperm=list(nsim=2),type='regression')
+perms <- clusterperm.lmer(Fz ~ session*cond + (1|ppn),data=within(MMN[MMN$time > 200 & MMN$time < 205,],{session <- factor(session); cond <- factor(cond)}),nperm=list(nsim=2),type='regression')
 }
 }

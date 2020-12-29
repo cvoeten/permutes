@@ -1,5 +1,6 @@
 #' Cluster-based permutation tests for time series data, based on mixed-effects models or other \code{buildmer} models.
 #' @param formula A normal formula, possibly using \code{lme4}-style random effects. This can also be a buildmer terms object, provided \code{dep} is passed in \code{buildmerControl}. Only a single response variable is supported. For binomial models, the \code{cbind} syntax is not supported; please convert your dependent variable to a proportion and use weights instead.
+#' @param family The family.
 #' @param data The data.
 #' @template weightsoffset
 #' @param series.var A one-sided formula giving the variable grouping the time series.
@@ -17,6 +18,7 @@
 #' perms <- clusterperm.lmer(Fz ~ dev*session + (1|ppn),data=MMN[MMN$time > 200 & MMN$time < 205,],series.var=~time,nperm=list(nsim=2),type='regression')
 #' perms <- clusterperm.lmer(Fz ~ session*cond + (1|ppn),data=within(MMN[MMN$time > 200 & MMN$time < 205,],{session <- factor(session); cond <- factor(cond)}),series.var=~time,nperm=list(nsim=2),type='regression')
 #' }
+#' @importFrom stats gaussian
 #' @export
 clusterperm.lmer <- function (formula,data=NULL,family=gaussian(),weights=NULL,offset=NULL,series.var,buildmerControl=list(direction='order',crit='LRT',quiet=TRUE,ddf='lme4'),nperm=1000,type='anova',parallel=FALSE,progress='none') {
 	if (length(type) != 1 || !type %in% c('anova','regression')) {
@@ -119,7 +121,7 @@ fit.buildmer <- function (t,formula,data,family,timepoints,buildmerControl,nperm
 		formula <- buildmer::tabulate.formula(formula)
 	}
 	fixed <- is.na(formula$grouping)
-	terms <- setNames(,formula$term[fixed])
+	terms <- stats::setNames(,formula$term[fixed])
 
 	if (type == 'regression') {
 		# Convert factor terms into individual parameters
@@ -143,9 +145,10 @@ fit.buildmer <- function (t,formula,data,family,timepoints,buildmerControl,nperm
 			}
 		}
 		environment(formula) <- env
-		terms <- setNames(,formula$term[fixed])
+		terms <- stats::setNames(,formula$term[fixed])
 	}
 
+	.weights <- data$.weights; .offset <- data$.offset #silence R CMD check warning
 	bm <- buildmer::buildmer(formula=formula,data=data,family=family,buildmerControl=buildmerControl,weights=.weights,offset=.offset)
 	perms <- lapply(terms,function (term) {
 		if (verbose) {
@@ -173,7 +176,7 @@ fit.buildmer <- function (t,formula,data,family,timepoints,buildmerControl,nperm
 			X <- lme4::getME(bm@model,'X')
 			B <- lme4::fixef(bm@model)
 		} else {
-			X <- model.matrix(formula(bm@model),data)
+			X <- stats::model.matrix(formula(bm@model),data)
 			B <- stats::coef(bm@model)
 		}
 		if (any(i <- !is.finite(B))) {
@@ -182,31 +185,31 @@ fit.buildmer <- function (t,formula,data,family,timepoints,buildmerControl,nperm
 		if (term == '1') {
 			# If it's the intercept, things are simple
 			X[colnames(X) != '(Intercept)'] <- 0
-			e <- resid(bm@model) + X %*% B
+			e <- stats::resid(bm@model) + X %*% B
 			X <- X[,colnames(X) == '(Intercept)']
 		} else {
 			# If it's not the intercept, things are more complicated: we need to figure out the name in the model matrix
 			# Keep in the intercept because otherwise model.matrix() will not process factor levels
 			tab.restricted <- formula[formula$term %in% c('1',term) & is.na(formula$grouping),]
 			formula.restricted <- buildmer::build.formula(NULL,tab.restricted)
-			X.restricted <- model.matrix(formula.restricted,data)
+			X.restricted <- stats::model.matrix(formula.restricted,data)
 			if ('1' %in% tab.restricted$term) {
 				# Now we drop the intercept again, and we will only be left with the focal effect
 				X.restricted <- X.restricted[,-1]
 			}
-			if (!ncol(X.restricted)) {
+			if (!NCOL(X.restricted)) {
 				return(list(perms=0*1:nperm,LRT=0,df=0))
 			}
 			want <- colnames(X) %in% colnames(X.restricted)
 			X[,!want] <- 0
-			e <- resid(bm@model) + X %*% B
+			e <- stats::resid(bm@model) + X %*% B
 			X <- X[,want]
 		}
 
 		# 2/3. Random effects have already been partialed out, so these are independent and exchangeable
 		# 4/5. Permute them and estimate a null and alternative model on the permuted data
 		# The offset has been partialed out already, so will be ignored
-		fit <- if (bm@p$is.gaussian) function (formula,data) lm(formula,data,weights=.weights) else function (formula,data) suppressWarnings(glm(formula,family=family,data=data,weights=.weights))
+		fit <- if (bm@p$is.gaussian) function (formula,data) stats::lm(formula,data,weights=.weights) else function (formula,data) suppressWarnings(stats::glm(formula,family=family,data=data,weights=.weights))
 		perms <- lapply(1:nperm,function (i) try({
 			s <- sample(seq_along(e))
 			data <- list(
@@ -216,7 +219,7 @@ fit.buildmer <- function (t,formula,data,family,timepoints,buildmerControl,nperm
 			)
 			m1 <- fit(y ~ 0+X,data)
 			m0 <- fit(y ~ 0,data)
-			as.numeric(2*(logLik(m1)-logLik(m0)))
+			as.numeric(2*(stats::logLik(m1)-stats::logLik(m0)))
 		},silent=TRUE))
 		bad <- sapply(perms,inherits,'try-error')
 		if (any(bad)) {
@@ -227,8 +230,8 @@ fit.buildmer <- function (t,formula,data,family,timepoints,buildmerControl,nperm
 		# Wrap up
 		data$y <- family$linkinv(e)
 		data$X <- X
-		ll1 <- logLik(fit(y ~ 0+X,data))
-		ll0 <- logLik(fit(y ~ 0,data))
+		ll1 <- stats::logLik(fit(y ~ 0+X,data))
+		ll0 <- stats::logLik(fit(y ~ 0,data))
 		LRT <- as.numeric(2*(ll1-ll0))
 		df  <- attr(ll1,'df') - attr(ll0,'df')
 		if (verbose) {
@@ -259,8 +262,8 @@ fit.buildmer <- function (t,formula,data,family,timepoints,buildmerControl,nperm
 		list(terms=terms,perms=perms,df=df)
 	} else {
 		if (inherits(bm@model,'gam')) {
-			anova <- anova(bm@model) #is Type III
-			Fvals <- pTerms.chi.sq / pTerms.df
+			anova <- stats::anova(bm@model) #is Type III
+			Fvals <- anova$pTerms.chi.sq / anova$pTerms.df
 			Fname <- 'F'
 		} else {
 			test <- if (inherits(bm@model,'glm')) 'Wald' else 'Chisq'
@@ -291,6 +294,7 @@ fit.buildmer <- function (t,formula,data,family,timepoints,buildmerControl,nperm
 
 #' A general permutation test for mixed-effects model or other \code{buildmer} models.
 #' @param formula A normal formula, possibly using \code{lme4}-style random effects. This can also be a buildmer terms object, provided \code{dep} is passed in \code{buildmerControl}. Only a single response variable is supported. For binomial models, the \code{cbind} syntax is not supported; please convert your dependent variable to a proportion and use weights instead.
+#' @param family The family.
 #' @param data The data.
 #' @template weightsoffset
 #' @template buildmer1
@@ -299,13 +303,14 @@ fit.buildmer <- function (t,formula,data,family,timepoints,buildmerControl,nperm
 #' @examples
 #' \donttest{
 #' # Testing a single EEG electrode, with random effects by participants
-#' perms <- perm.lmer(Fz ~ dev*session + (dev*session|ppn),data=MMN)
+#' perms <- clusterperm.lmer(Fz ~ dev*session + (dev*session|ppn),data=MMN)
 #' }
 #' \dontshow{
-#' perms <- perm.lmer(Fz ~ dev*session + (1|ppn),data=MMN[MMN$time > 200 & MMN$time < 205,],nperm=list(nsim=2),type='anova')
-#' perms <- perm.lmer(Fz ~ dev*session + (1|ppn),data=MMN[MMN$time > 200 & MMN$time < 205,],nperm=list(nsim=2),type='regression')
-#' perms <- perm.lmer(Fz ~ session*cond + (1|ppn),data=within(MMN[MMN$time > 200 & MMN$time < 205,],{session <- factor(session); cond <- factor(cond)}),nperm=list(nsim=2),type='regression')
+#' perms <- clusterperm.lmer(Fz ~ dev*session + (1|ppn),data=MMN[MMN$time > 200 & MMN$time < 205,],nperm=list(nsim=2),type='anova')
+#' perms <- clusterperm.lmer(Fz ~ dev*session + (1|ppn),data=MMN[MMN$time > 200 & MMN$time < 205,],nperm=list(nsim=2),type='regression')
+#' perms <- clusterperm.lmer(Fz ~ session*cond + (1|ppn),data=within(MMN[MMN$time > 200 & MMN$time < 205,],{session <- factor(session); cond <- factor(cond)}),nperm=list(nsim=2),type='regression')
 #' }
+#' @importFrom stats gaussian
 #' @export
 perm.lmer <- function (formula,data=NULL,family=gaussian(),weights=NULL,offset=NULL,buildmerControl=list(direction='order',crit='LRT',quiet=TRUE,ddf='lme4'),nperm=1000,type='regression',progress=TRUE) {
 	if (length(type) != 1 || !type %in% c('anova','regression')) {
@@ -355,7 +360,7 @@ perm.lmer <- function (formula,data=NULL,family=gaussian(),weights=NULL,offset=N
 	if (type == 'anova') {
 		if (inherits(bm@model,'gam')) {
 			# will happen if no random effects but REML=TRUE
-			bm@anova <- anova(bm@model)
+			bm@anova <- stats::anova(bm@model)
 			bm@anova$pTerms.table[,'p-value'] <- pvals
 		} else {
 			test <- if (inherits(bm@model,'glm')) 'Wald' else 'Chisq'

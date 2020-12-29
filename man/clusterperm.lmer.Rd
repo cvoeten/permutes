@@ -23,9 +23,11 @@ clusterperm.lmer(
 
 \item{data}{The data.}
 
-\item{weights}{Any prior case weights.}
+\item{family}{The family.}
 
-\item{offset}{Any prior offset term.}
+\item{weights}{An optional vector of prior case weights. This vector is evaluated in the calling environment, not in the formula or data frame!}
+
+\item{offset}{An optional vector containing a prior offset term. This vector is evaluated in the calling environment, not in the formula or data frame!}
 
 \item{series.var}{A one-sided formula giving the variable grouping the time series.}
 
@@ -38,8 +40,6 @@ clusterperm.lmer(
 \item{parallel}{Whether to parallelize the permutation testing using plyr's \code{parallel} option. Needs some additional set-up; see the plyr documentation.}
 
 \item{progress}{A plyr \code{.progress} bar name, see the plyr documentation. If not \code{'none'} while \code{parallel=TRUE}, an ad-hoc solution will be used, which will be visible if the cluster nodes were created with \code{outfile=''}.}
-
-\item{convOpts}{Options passed to \code{converged}.}
 }
 \value{
 A data frame.
