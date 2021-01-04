@@ -91,12 +91,16 @@ clusterperm.lmer <- function (formula,data=NULL,family=gaussian(),weights=NULL,o
 		df.LRT <- max(sapply(this.factor,function (x) x$df),na.rm=TRUE) #these will all be the same (because they are the same model comparison and these are ndf), except possibly in cases of rank-deficiency, hence why max is correct
 		thresh <- stats::qchisq(.95,df.LRT)
 		samp   <- sapply(this.factor,function (x) c(x$LRT,x$perms)) #columns are time, rows are samples
+		p      <- apply(samp,2,function (x) sum(x[-1] > thresh,na.rm=TRUE) / sum(!is.na(x)))
 		stat   <- permuco::compute_clustermass(samp,thresh,sum,'greater')$main
-		df[df$factor == x,c('cluster.mass','p','cluster')] <- stat
+		df[df$factor == x,c('p','cluster_mass','p.cluster_mass','cluster')] <- c(p,stat)
 	}
 
 	if (is.null(df$measure)) {
 		df <- cbind(measure=as.character(dep,df),df)
+	}
+	if (any(no.clusters <- is.na(df$p.cluster_mass))) {
+		df$p.cluster_mass[no.clusters] <- 1
 	}
 	colnames(df)[2] <- series.var
 	attr(df,'permutations') <- results
@@ -158,11 +162,11 @@ fit.buildmer <- function (t,formula,data,family,timepoints,buildmerControl,nperm
 
 		# https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3883440/ propose that, to test a random effect:
 		# 1. Get the marginal errors calculated by the alternative model
-		# 2. To account for these errors' non-independence: weigh the errors by the inverse of the random-effects correlation matrix
+		# 2. To account for these errors' non-independence: weight the errors by the inverse of the random-effects correlation matrix
 			# V0 = sigma^2_b_1_0 * ZtZ + sigma^2_e_0I
 		# 3. Weigh by Ut0^-1, where U0 = chol(V0)
 			# lme4 parameterizes sigma^2_b_1_0 Z = Z Lambda_theta and we really want their transpose
-		# 4. Permute the unweighted errors, then reweigh the permuted data
+		# 4. Permute the unweighted errors, then reweight the permuted data
 		# 5. Reestimate *both* models with the fixed effects removed, which is necessary if any random effects happened to be similar
 
 		# Our problem is much simpler than the above, however, since we only test fixed effects.
@@ -200,12 +204,12 @@ fit.buildmer <- function (t,formula,data,family,timepoints,buildmerControl,nperm
 			if (!NCOL(X.restricted)) {
 				return(list(perms=0*1:nperm,LRT=0,df=0))
 			}
-			normalnames <- function (X) { #because interaction terms may have been wickedly reordered between colnames(X) and colnames(X.restricted)
+			normalized.colnames <- function (X) { #because interaction terms may have been wickedly reordered between colnames(X) and colnames(X.restricted)
 				split <- strsplit(colnames(X),':')
 				norm <- lapply(split,sort)
 				sapply(norm,paste0,collapse=':')
 			}
-			want <- normalnames(X) %in% normalnames(X.restricted)
+			want <- normalized.colnames(X) %in% normalized.colnames(X.restricted)
 			X[,!want] <- 0
 			e <- stats::resid(bm@model) + X %*% B
 			X <- X[,want]
