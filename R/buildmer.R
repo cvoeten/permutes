@@ -30,6 +30,14 @@ clusterperm.lmer <- function (formula,data=NULL,family=gaussian(),weights=NULL,o
 		pkgcheck(c('buildmer','car','permuco'))
 	}
 
+	# common errors (by me)
+	if (!'formula' %in% class(series.var)) {
+		series.var <- reformulate(series.var)
+	}
+	if (!is.character(progress) && !isTRUE(parallel)) {
+		stop("Invalid 'progress' specified for non-ad-hoc parallel solution (it has to be a character string)")
+	}
+
 	dep <- if ('dep' %in% names(buildmerControl)) buildmerControl$dep else as.character(formula[2])
 	if (all(is.null(weights))) {
 		weights <- rep(1,length(data[[dep]]))
@@ -47,6 +55,9 @@ clusterperm.lmer <- function (formula,data=NULL,family=gaussian(),weights=NULL,o
 	}
 	data$.weights <- weights[ix]
 	data$.offset <- offset[ix]
+	if (length(series.var) != 2) {
+		stop('series.var does not appear to contain exactly one variable')
+	}
 	series.var <- as.character(series.var[2])
 	timepoints <- data[[series.var]]
 	if (is.null(timepoints)) {
@@ -98,9 +109,6 @@ clusterperm.lmer <- function (formula,data=NULL,family=gaussian(),weights=NULL,o
 
 	if (is.null(df$measure)) {
 		df <- cbind(measure=as.character(dep,df),df)
-	}
-	if (any(no.clusters <- is.na(df$p.cluster_mass))) {
-		df$p.cluster_mass[no.clusters] <- 1
 	}
 	colnames(df)[2] <- series.var
 	attr(df,'permutations') <- results
