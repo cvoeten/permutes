@@ -6,9 +6,9 @@
 \usage{
 \method{plot}{permutes}(
   x,
-  type = c("LRT", "F", "t", "p.corr", "p", "w2", "beta"),
+  type = c("LRT", "F", "t", "beta", "w2", "cluster_mass"),
   breaks = NULL,
-  sig = TRUE,
+  sig = NULL,
   ...
 )
 }
@@ -19,7 +19,7 @@
 
 \item{breaks}{The granularity of the labels of the x axis. Pass `unique(x[,2])' to get a tick for every timepoint. Combine this trick with subsetting of your dataset, and perhaps averaging over all your dependent variables, to `zoom in' on your data to help you determine precisely where significance begins and stops to occur.}
 
-\item{sig}{If \code{TRUE} (default), will only show results that reached significance in the permutation-based cluster-mass test. Else, will plot everything.}
+\item{sig}{An optional column name. If specified, only cases with a value of <.05 in this column will be plotted. NULL by default, but suggested to be set to \code{'p.cluster_mass'} for easy visualization of the cluster-mass-test results, or \code{'p'} to directly use the permutation p-values.}
 
 \item{...}{Other arguments, which will be ignored (the ellipsis is provided for consistency with the generic plot() method).}
 }

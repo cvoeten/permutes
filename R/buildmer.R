@@ -11,16 +11,20 @@
 #' @examples
 #' \donttest{
 #' # Testing a single EEG electrode, with random effects by participants
-#' perms <- clusterperm.lmer(Fz ~ dev*session + (dev*session|ppn),data=MMN,series.var=~time)
+#' perms <- clusterperm.lmer(Fz ~ Deviant * Session + (Deviant * Session | Subject),
+#' 	data=MMN,series.var=~Time)
+#' # Testing a single EEG electrode, with random effects by participants, ANOVA inference
+#' perms <- clusterperm.lmer(Fz ~ Deviant * Session + (Deviant * Session | Subject),
+#' 	data=MMN,series.var=~Time,type='anova')
 #' }
 #' \dontshow{
-#' perms <- clusterperm.lmer(Fz ~ dev*session + (1|ppn),data=MMN[MMN$time > 200 & MMN$time < 205,],series.var=~time,nperm=list(nsim=2),type='anova')
-#' perms <- clusterperm.lmer(Fz ~ dev*session + (1|ppn),data=MMN[MMN$time > 200 & MMN$time < 205,],series.var=~time,nperm=list(nsim=2),type='regression')
-#' perms <- clusterperm.lmer(Fz ~ session*cond + (1|ppn),data=within(MMN[MMN$time > 200 & MMN$time < 205,],{session <- factor(session); cond <- factor(cond)}),series.var=~time,nperm=list(nsim=2),type='regression')
+#' perms <- clusterperm.lmer(Fz ~ Deviant*Session + (1|Subject),data=MMN[MMN$Time > 200 & MMN$Time < 205,],series.var=~Time,nperm=2,type='anova')
+#' perms <- clusterperm.lmer(Fz ~ Deviant*Session + (1|Subject),data=MMN[MMN$Time > 200 & MMN$Time < 205,],series.var=~Time,nperm=2,type='regression')
+#' perms <- clusterperm.lmer(Fz ~ Session + (1|ppn),data=within(MMN[MMN$Time > 200 & MMN$Time < 205,],{Session <- factor(Session)}),series.var=~Time,nperm=2,type='regression')
 #' }
 #' @importFrom stats gaussian
 #' @export
-clusterperm.lmer <- function (formula,data=NULL,family=gaussian(),weights=NULL,offset=NULL,series.var,buildmerControl=list(direction='order',crit='LRT',quiet=TRUE,ddf='lme4'),nperm=1000,type='anova',parallel=FALSE,progress='none') {
+clusterperm.lmer <- function (formula,data=NULL,family=gaussian(),weights=NULL,offset=NULL,series.var,buildmerControl=list(direction='order',crit='LRT',quiet=TRUE,ddf='lme4'),nperm=1000,type='regression',parallel=FALSE,progress='none') {
 	if (length(type) != 1 || !type %in% c('anova','regression')) {
 		stop("Invalid 'type' argument (specify one of 'anova' or 'regression')")
 	}
@@ -32,7 +36,7 @@ clusterperm.lmer <- function (formula,data=NULL,family=gaussian(),weights=NULL,o
 
 	# common errors (by me)
 	if (!'formula' %in% class(series.var)) {
-		series.var <- reformulate(series.var)
+		series.var <- stats::reformulate(series.var)
 	}
 	if (!is.character(progress) && !isTRUE(parallel)) {
 		stop("Invalid 'progress' specified for non-ad-hoc parallel solution (it has to be a character string)")
@@ -95,7 +99,7 @@ clusterperm.lmer <- function (formula,data=NULL,family=gaussian(),weights=NULL,o
 		names(perms[[i]]) <- terms[[i]]
 	}
 
-	df$p <- df$cluster.mass <- df$cluster <- NA
+	df$p <- df$cluster_mass <- df$cluster <- NA
 	# We need to invert the double-nested list from perm$time$factor to perm$factor$time
 	for (x in unique(df$factor)) {
 		this.factor <- lapply(perms,`[[`,x) #all timepoints for this one factor
@@ -107,10 +111,8 @@ clusterperm.lmer <- function (formula,data=NULL,family=gaussian(),weights=NULL,o
 		df[df$factor == x,c('p','cluster_mass','p.cluster_mass','cluster')] <- c(p,stat)
 	}
 
-	if (is.null(df$measure)) {
-		df <- cbind(measure=as.character(dep,df),df)
-	}
-	colnames(df)[2] <- series.var
+	df <- cbind(df[,1],measure=as.character(dep),df[,-1])
+	colnames(df)[1] <- series.var
 	attr(df,'permutations') <- results
 	class(df) <- c('permutes','data.frame')
 	df
@@ -279,25 +281,25 @@ fit.buildmer <- function (t,formula,data,family,timepoints,buildmerControl,nperm
 		list(terms=terms,perms=perms,df=df)
 	} else {
 		if (inherits(bm@model,'gam')) {
-			anova <- stats::anova(bm@model) #is Type III
-			Fvals <- anova$pTerms.chi.sq / anova$pTerms.df
+			anovatab <- stats::anova(bm@model) #is Type III
+			Fvals <- anovatab$pTerms.chi.sq / anovatab$pTerms.df
 			Fname <- 'F'
 		} else {
 			test <- if (inherits(bm@model,'glm')) 'Wald' else 'Chisq'
-			anova <- car::Anova(bm@model,type=3,test=test)
+			anovatab <- car::Anova(bm@model,type=3,test=test)
 			if (inherits(bm@model,'merMod') || inherits(bm@model,'glm')) {
-				Fvals <- anova$Chisq
+				Fvals <- anovatab$Chisq
 				Fname <- 'Chisq'
 				if (inherits(bm@model,'lmerMod')) {
-					Fvals <- Fvals / anova$Df
+					Fvals <- Fvals / anovatab$Df
 					Fname <- 'F'
 				}
 			} else {
-				Fvals <- anova$'F value'
+				Fvals <- anovatab$'F value'
 				Fname <- 'F'
 			}
 		}
-		names(Fvals) <- rownames(anova)
+		names(Fvals) <- rownames(anovatab)
 		if (length(Fvals) < length(terms)) { #rank-deficiency
 			missing <- setdiff(names(terms),names(Fvals))
 			Fvals[missing] <- NA
@@ -309,7 +311,7 @@ fit.buildmer <- function (t,formula,data,family,timepoints,buildmerControl,nperm
 	}
 }
 
-#' A general permutation test for mixed-effects model or other \code{buildmer} models.
+#' A general permutation test for mixed-effects models or other \code{buildmer} models.
 #' @param formula A normal formula, possibly using \code{lme4}-style random effects. This can also be a buildmer terms object, provided \code{dep} is passed in \code{buildmerControl}. Only a single response variable is supported. For binomial models, the \code{cbind} syntax is not supported; please convert your dependent variable to a proportion and use weights instead.
 #' @param family The family.
 #' @param data The data.
@@ -320,12 +322,14 @@ fit.buildmer <- function (t,formula,data,family,timepoints,buildmerControl,nperm
 #' @examples
 #' \donttest{
 #' # Testing a single EEG electrode, with random effects by participants
-#' perms <- clusterperm.lmer(Fz ~ dev*session + (dev*session|ppn),data=MMN)
+#' perms <- perm.lmer(Fz ~ Deviant * Session + (Deviant * Session | Subject),data=MMN)
+#' # Testing a single EEG electrode, with random effects by participants, ANOVA inference
+#' perms <- perm.lmer(Fz ~ Deviant * Session + (Deviant * Session | Subject),data=MMN,type='anova')
 #' }
 #' \dontshow{
-#' perms <- clusterperm.lmer(Fz ~ dev*session + (1|ppn),data=MMN[MMN$time > 200 & MMN$time < 205,],nperm=list(nsim=2),type='anova')
-#' perms <- clusterperm.lmer(Fz ~ dev*session + (1|ppn),data=MMN[MMN$time > 200 & MMN$time < 205,],nperm=list(nsim=2),type='regression')
-#' perms <- clusterperm.lmer(Fz ~ session*cond + (1|ppn),data=within(MMN[MMN$time > 200 & MMN$time < 205,],{session <- factor(session); cond <- factor(cond)}),nperm=list(nsim=2),type='regression')
+#' perms <- perm.lmer(Fz ~ Deviant*Session + (1|Subject),data=MMN[MMN$Time > 200 & MMN$Time < 205,],nperm=2,type='anova')
+#' perms <- perm.lmer(Fz ~ Deviant*Session + (1|Subject),data=MMN[MMN$Time > 200 & MMN$Time < 205,],nperm=2,type='regression')
+#' perms <- perm.lmer(Fz ~ Session + (1|Subject),data=within(MMN[MMN$Time > 200 & MMN$Time < 205,],{Session <- factor(Session)}),nperm=2,type='regression')
 #' }
 #' @importFrom stats gaussian
 #' @export
@@ -385,7 +389,7 @@ perm.lmer <- function (formula,data=NULL,family=gaussian(),weights=NULL,offset=N
 			if (inherits(bm@model,'merMod') || inherits(bm,'glm')) {
 				if (inherits(bm@model,'lmerMod')) {
 					factors <- rownames(bm@anova)
-					bm@anova <- data.frame('F value'=bm@anova$Chisq/anova$Df,'Df'=bm@anova$Df,'Pr(>F)'=pvals)
+					bm@anova <- data.frame('F value'=bm@anova$Chisq/bm@anova$Df,'Df'=bm@anova$Df,'Pr(>F)'=pvals)
 					rownames(bm@anova) <- factors
 					attr(bm@anova,'heading') <- 'ANOVA table (Type III sums of squares) with permutation p-values'
 					class(bm@anova) <- c('anova','data.frame')

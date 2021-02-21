@@ -47,8 +47,8 @@ This is a legacy function that is primarily provided for backward compatibility.
 
 # Run permutation tests on all electrodes and timepoints, reporting p-values for the three
 # manipulated factors
-perms <- permu.mer(cbind(Fp1,AF3,F7,F3,FC1,FC5,C3,CP1,CP5,P7,P3,Pz,PO3,O1,Oz,O2,PO4,P4,
-               P8,CP6,CP2,C4,FC6,FC2,F4,F8,AF4,Fp2,Fz,Cz) ~ dev*session | time,data=MMN)
+perms <- permu.test(cbind(Fp1,AF3,F7,F3,FC1,FC5,C3,CP1,CP5,P7,P3,Pz,PO3,O1,Oz,O2,PO4,P4,
+	P8,CP6,CP2,C4,FC6,FC2,F4,F8,AF4,Fp2,Fz,Cz) ~ Deviant * Session | Time,data=MMN)
 
 # Run the tests in parallel on two CPU threads
 # first, set up the parallel backend
@@ -56,25 +56,26 @@ library(doParallel)
 cl <- makeCluster(2)
 registerDoParallel(cl)
 perms <- permu.test(cbind(Fp1,AF3,F7,F3,FC1,FC5,C3,CP1,CP5,P7,P3,Pz,PO3,O1,Oz,O2,PO4,P4,
- P8,CP6,CP2,C4,FC6,FC2,F4,F8,AF4,Fp2,Fz,Cz) ~ dev*session | time,data=MMN,parallel=TRUE)
+	P8,CP6,CP2,C4,FC6,FC2,F4,F8,AF4,Fp2,Fz,Cz) ~ Deviant * Session | Time,data=MMN,
+	parallel=TRUE)
 stopCluster(cl)
 
 # Plot the results by F-value, removing points that were not significant in the
 # permutation tests
-plot(perms,only.sig=TRUE)
+plot(perms,sig='p')
 
 # t-values instead of F-values
 perms <- permu.test(cbind(Fp1,AF3,F7,F3,FC1,FC5,C3,CP1,CP5,P7,P3,Pz,PO3,O1,Oz,O2,PO4,P4,
-               P8,CP6,CP2,C4,FC6,FC2,F4,F8,AF4,Fp2,Fz,Cz) ~ dev*session | time,data=MMN,
-                                                                      type='regression')
+	P8,CP6,CP2,C4,FC6,FC2,F4,F8,AF4,Fp2,Fz,Cz) ~ Deviant * Session | Time,data=MMN,
+	type='regression')
 }
 \dontshow{
-perms <- permu.test(Fp1 ~ dev*session | time,data=MMN[MMN$time > 200 & MMN$time < 205,])
-perms <- permu.test(cbind(Fp1,Fp2) ~ dev*session | time,data=MMN[MMN$time > 200 & MMN$time < 205,])
-perms <- permu.test(Fp1 ~ dev*session | time,data=MMN[MMN$time > 200 & MMN$time < 205,],type='regression')
-perms <- permu.test(cbind(Fp1,Fp2) ~ dev*session | time,data=MMN[MMN$time > 200 & MMN$time < 205,],type='regression')
+perms <- permu.test(Fp1 ~ Deviant*Session | Time,data=MMN[MMN$Time > 200 & MMN$Time < 205,])
+perms <- permu.test(cbind(Fp1,Fp2) ~ Deviant*Session | Time,data=MMN[MMN$Time > 200 & MMN$Time < 205,])
+perms <- permu.test(Fp1 ~ Deviant*Session | Time,data=MMN[MMN$Time > 200 & MMN$Time < 205,],type='regression')
+perms <- permu.test(cbind(Fp1,Fp2) ~ Deviant*Session | Time,data=MMN[MMN$Time > 200 & MMN$Time < 205,],type='regression')
 }
 }
 \seealso{
-\code{permutelm}, \code{permutelmer}
+\code{clusterperm.lm}, \code{clusterperm/lmer}
 }
