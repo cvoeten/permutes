@@ -2,7 +2,7 @@
 % Please edit documentation in R/discoverability.R
 \name{clusterperm.glm}
 \alias{clusterperm.glm}
-\title{Cluster-based permutation tests for time series data, based on generalized linear models or other \code{buildmer} models. This is an alias for \code{clusterperm.lmer} provided for discoverability.}
+\title{Cluster-based permutation tests for time series data, based on generalized linear models or other \code{buildmer} models. This is an alias for \code{clusterperm.lm} provided for discoverability.}
 \usage{
 clusterperm.glm(...)
 }
@@ -10,10 +10,11 @@ clusterperm.glm(...)
 \item{...}{Arguments to be passed to \code{clusterperm.lm}.}
 }
 \description{
-Cluster-based permutation tests for time series data, based on generalized linear models or other \code{buildmer} models. This is an alias for \code{clusterperm.lmer} provided for discoverability.
+Cluster-based permutation tests for time series data, based on generalized linear models or other \code{buildmer} models. This is an alias for \code{clusterperm.lm} provided for discoverability.
 }
 \examples{
-perms <- clusterperm.glm(Fz ~ dev*session,data=MMN,series.var=~time)
+\donttest{perms <- clusterperm.glm(Fz ~ Deviant * Session,data=MMN,series.var=~Time)}
+\dontshow{perms <- clusterperm.glm(Fz ~ Deviant * Session,data=MMN[MMN$Time > 200 & MMN$Time < 205,],series.var=~Time,nperm=2)}
 }
 \seealso{
 clusterperm.lm, clusterperm.lmer
