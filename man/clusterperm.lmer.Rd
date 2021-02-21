@@ -13,7 +13,7 @@ clusterperm.lmer(
   series.var,
   buildmerControl = list(direction = "order", crit = "LRT", quiet = TRUE, ddf = "lme4"),
   nperm = 1000,
-  type = "anova",
+  type = "regression",
   parallel = FALSE,
   progress = "none"
 )
@@ -51,16 +51,20 @@ Cluster-based permutation tests for time series data, based on mixed-effects mod
 If not explicitly overridden in the \code{buildmerControl} argument, the function changes a few buildmer defaults to make more sense for permutation testing. This includes setting \code{direction='order'} and \code{quiet=TRUE}. Set these options explicitly to override this behavior.
 Because model comparisons are used for efficient permutation testing, REML is not supported.
 Omega squared is not available for mixed-effects ANOVA; the \code{w2} column will not be included in the resulting \code{permutes} object.
-The returned object provides the raw bootstrap samples in the \code{pb} attribute. These are used to compute a corrected p-value using Maris & Oostenveld's (2007) cluster mass statistic, but can also be used by the user to compute other such statistics. These obviously significantly increase the size of the R object; if this becomes a problem, there is no harm in deleting them using e.g.\ \code{attr(x,'perms') <- NULL}.
+The returned object provides the raw bootstrap samples in the \code{pb} attribute. These are used to compute a corrected p-value using Maris & Oostenveld's (2007) cluster mass statistic, but can also be used by the user to compute other such statistics. These obviously significantly increase the size of the R object; if this becomes a problem, there is no harm in deleting them using e.g. \code{attr(x,'perms') <- NULL}.
 }
 \examples{
 \donttest{
 # Testing a single EEG electrode, with random effects by participants
-perms <- clusterperm.lmer(Fz ~ dev*session + (dev*session|ppn),data=MMN,series.var=~time)
+perms <- clusterperm.lmer(Fz ~ Deviant * Session + (Deviant * Session | Subject),
+	data=MMN,series.var=~Time)
+# Testing a single EEG electrode, with random effects by participants, ANOVA inference
+perms <- clusterperm.lmer(Fz ~ Deviant * Session + (Deviant * Session | Subject),
+	data=MMN,series.var=~Time,type='anova')
 }
 \dontshow{
-perms <- clusterperm.lmer(Fz ~ dev*session + (1|ppn),data=MMN[MMN$time > 200 & MMN$time < 205,],series.var=~time,nperm=list(nsim=2),type='anova')
-perms <- clusterperm.lmer(Fz ~ dev*session + (1|ppn),data=MMN[MMN$time > 200 & MMN$time < 205,],series.var=~time,nperm=list(nsim=2),type='regression')
-perms <- clusterperm.lmer(Fz ~ session*cond + (1|ppn),data=within(MMN[MMN$time > 200 & MMN$time < 205,],{session <- factor(session); cond <- factor(cond)}),series.var=~time,nperm=list(nsim=2),type='regression')
+perms <- clusterperm.lmer(Fz ~ Deviant*Session + (1|Subject),data=MMN[MMN$Time > 200 & MMN$Time < 205,],series.var=~Time,nperm=2,type='anova')
+perms <- clusterperm.lmer(Fz ~ Deviant*Session + (1|Subject),data=MMN[MMN$Time > 200 & MMN$Time < 205,],series.var=~Time,nperm=2,type='regression')
+perms <- clusterperm.lmer(Fz ~ Session + (1|ppn),data=within(MMN[MMN$Time > 200 & MMN$Time < 205,],{Session <- factor(Session)}),series.var=~Time,nperm=2,type='regression')
 }
 }

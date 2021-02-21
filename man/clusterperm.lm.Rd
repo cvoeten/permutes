@@ -15,8 +15,7 @@ clusterperm.lm(
   nperm = 1000,
   type = "regression",
   parallel = FALSE,
-  progress = "none",
-  ...
+  progress = "none"
 )
 }
 \arguments{
@@ -52,10 +51,11 @@ Cluster-based permutation tests for time series data, based on mixed-effects mod
 If not explicitly overridden in the \code{buildmerControl} argument, the function changes a few buildmer defaults to make more sense for permutation testing. This includes setting \code{direction='order'} and \code{quiet=TRUE}. Set these options explicitly to override this behavior.
 Because model comparisons are used for efficient permutation testing, REML is not supported.
 Omega squared is not available for mixed-effects ANOVA; the \code{w2} column will not be included in the resulting \code{permutes} object.
-The returned object provides the raw bootstrap samples in the \code{pb} attribute. These are used to compute a corrected p-value using Maris & Oostenveld's (2007) cluster mass statistic, but can also be used by the user to compute other such statistics. These obviously significantly increase the size of the R object; if this becomes a problem, there is no harm in deleting them using e.g.\ \code{attr(x,'perms') <- NULL}.
+The returned object provides the raw bootstrap samples in the \code{pb} attribute. These are used to compute a corrected p-value using Maris & Oostenveld's (2007) cluster mass statistic, but can also be used by the user to compute other such statistics. These obviously significantly increase the size of the R object; if this becomes a problem, there is no harm in deleting them using e.g. \code{attr(x,'perms') <- NULL}.
 }
 \examples{
-perms <- clusterperm.lm(Fz ~ dev*session,data=MMN,series.var=~time)
+\donttest{perms <- clusterperm.lm(Fz ~ Deviant * Session,data=MMN,series.var=~Time)}
+\dontshow{perms <- clusterperm.lm(Fz ~ Deviant * Session,data=MMN[MMN$Time > 200 & MMN$Time < 205,],series.var=~Time,nperm=2)}
 }
 \seealso{
 clusterperm.lmer

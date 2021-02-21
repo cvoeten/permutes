@@ -10,15 +10,15 @@
 #' @param progress A plyr \code{.progress} bar name, see the plyr documentation. Ignored if parallel=TRUE.
 #' @param ... Other arguments to be passed to \code{lmp}/\code{aovp}
 #' @return A data frame.
-#' @seealso \code{permutelm}, \code{permutelmer}
+#' @seealso \code{clusterperm.lm}, \code{clusterperm.lmer}
 #' @examples
 #' \donttest{
 #' # EEG data example using the MMN dataset
 #' 
 #' # Run permutation tests on all electrodes and timepoints, reporting p-values for the three
 #' # manipulated factors
-#' perms <- permu.mer(cbind(Fp1,AF3,F7,F3,FC1,FC5,C3,CP1,CP5,P7,P3,Pz,PO3,O1,Oz,O2,PO4,P4,
-#'                P8,CP6,CP2,C4,FC6,FC2,F4,F8,AF4,Fp2,Fz,Cz) ~ dev*session | time,data=MMN)
+#' perms <- permu.test(cbind(Fp1,AF3,F7,F3,FC1,FC5,C3,CP1,CP5,P7,P3,Pz,PO3,O1,Oz,O2,PO4,P4,
+#' 	P8,CP6,CP2,C4,FC6,FC2,F4,F8,AF4,Fp2,Fz,Cz) ~ Deviant * Session | Time,data=MMN)
 #' 
 #' # Run the tests in parallel on two CPU threads
 #' # first, set up the parallel backend
@@ -26,23 +26,24 @@
 #' cl <- makeCluster(2)
 #' registerDoParallel(cl)
 #' perms <- permu.test(cbind(Fp1,AF3,F7,F3,FC1,FC5,C3,CP1,CP5,P7,P3,Pz,PO3,O1,Oz,O2,PO4,P4,
-#'  P8,CP6,CP2,C4,FC6,FC2,F4,F8,AF4,Fp2,Fz,Cz) ~ dev*session | time,data=MMN,parallel=TRUE)
+#' 	P8,CP6,CP2,C4,FC6,FC2,F4,F8,AF4,Fp2,Fz,Cz) ~ Deviant * Session | Time,data=MMN,
+#' 	parallel=TRUE)
 #' stopCluster(cl)
 #' 
 #' # Plot the results by F-value, removing points that were not significant in the
 #' # permutation tests
-#' plot(perms,only.sig=TRUE)
+#' plot(perms,sig='p')
 #' 
 #' # t-values instead of F-values
 #' perms <- permu.test(cbind(Fp1,AF3,F7,F3,FC1,FC5,C3,CP1,CP5,P7,P3,Pz,PO3,O1,Oz,O2,PO4,P4,
-#'                P8,CP6,CP2,C4,FC6,FC2,F4,F8,AF4,Fp2,Fz,Cz) ~ dev*session | time,data=MMN,
-#'                                                                       type='regression')
+#' 	P8,CP6,CP2,C4,FC6,FC2,F4,F8,AF4,Fp2,Fz,Cz) ~ Deviant * Session | Time,data=MMN,
+#' 	type='regression')
 #' }
 #' \dontshow{
-#' perms <- permu.test(Fp1 ~ dev*session | time,data=MMN[MMN$time > 200 & MMN$time < 205,])
-#' perms <- permu.test(cbind(Fp1,Fp2) ~ dev*session | time,data=MMN[MMN$time > 200 & MMN$time < 205,])
-#' perms <- permu.test(Fp1 ~ dev*session | time,data=MMN[MMN$time > 200 & MMN$time < 205,],type='regression')
-#' perms <- permu.test(cbind(Fp1,Fp2) ~ dev*session | time,data=MMN[MMN$time > 200 & MMN$time < 205,],type='regression')
+#' perms <- permu.test(Fp1 ~ Deviant*Session | Time,data=MMN[MMN$Time > 200 & MMN$Time < 205,])
+#' perms <- permu.test(cbind(Fp1,Fp2) ~ Deviant*Session | Time,data=MMN[MMN$Time > 200 & MMN$Time < 205,])
+#' perms <- permu.test(Fp1 ~ Deviant*Session | Time,data=MMN[MMN$Time > 200 & MMN$Time < 205,],type='regression')
+#' perms <- permu.test(cbind(Fp1,Fp2) ~ Deviant*Session | Time,data=MMN[MMN$Time > 200 & MMN$Time < 205,],type='regression')
 #' }
 #' @export
 permu.test <- function (formula,data,subset=NULL,type='anova',parallel=FALSE,progress='text',...) {
@@ -76,10 +77,11 @@ permu.test <- function (formula,data,subset=NULL,type='anova',parallel=FALSE,pro
 	}
 	ret <- plyr::adply(sort(unique(timepoints)),1,wrap,fun,formula,data,timepoints,dots,.id=timepoint.var,.parallel=parallel,.progress=ifelse(parallel,'none',progress))
 	if (is.null(ret$measure)) {
-		ret <- cbind(measure=as.character(formula[[2]]),ret)
+		ret <- cbind(ret[,1],measure=as.character(formula[[2]]),ret[,-1])
+		colnames(ret)[1] <- timepoint.var
 	}
-	ret$measure <- sub('^ Response ','',ret$measure)
-	ret$factor <- sub(' +$','',ret$factor)
+	ret$measure <- sub(' ?Response +','',ret$measure)
+	ret$factor <- gsub(' +$','',ret$factor)
 	class(ret) <- c('permutes','data.frame')
 	ret
 }
@@ -117,7 +119,7 @@ fit.lmp <- function (t,formula,data,timepoints,dots) {
 		smy <- list(smy) #univariate outcome
 	}
 	plyr::ldply(smy,function (res) {
-		if (is.nan(stats::sigma(mod))) {
+		if (is.null(mod$coefficients) || all(is.na(mod$coefficients))) {
 			stop('Timepoint ',t,' did not have more observations than predictors; the model is unidentifiable')
 		}
 		coef <- res$coefficients
