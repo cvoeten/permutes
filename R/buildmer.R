@@ -106,7 +106,7 @@ clusterperm.lmer <- function (formula,data=NULL,family=gaussian(),weights=NULL,o
 		df.LRT <- max(sapply(this.factor,function (x) x$df),na.rm=TRUE) #these will all be the same (because they are the same model comparison and these are ndf), except possibly in cases of rank-deficiency, hence why max is correct
 		thresh <- stats::qchisq(.95,df.LRT)
 		samp   <- sapply(this.factor,function (x) c(x$LRT,x$perms)) #columns are time, rows are samples
-		p      <- apply(samp,2,function (x) sum(x[-1] > thresh,na.rm=TRUE) / sum(!is.na(x)))
+		p      <- apply(samp,2,function (x) sum(x[-1] >= x[1],na.rm=TRUE) / sum(!is.na(x)))
 		stat   <- permuco::compute_clustermass(samp,thresh,sum,'greater')$main
 		df[df$factor == x,c('p','cluster_mass','p.cluster_mass','cluster')] <- c(p,stat)
 	}
@@ -242,7 +242,7 @@ fit.buildmer <- function (t,formula,data,family,timepoints,buildmerControl,nperm
 		},silent=TRUE))
 		bad <- sapply(perms,inherits,'try-error')
 		if (any(bad)) {
-			perms[bad] <- 0
+			perms[bad] <- NA
 		}
 		perms <- unlist(perms)
 
