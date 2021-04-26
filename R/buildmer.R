@@ -295,6 +295,7 @@ fit.buildmer <- function (t,formula,data,family,timepoints,buildmerControl,nperm
 			anovatab <- stats::anova(bm@model) #is Type III
 			Fvals <- anovatab$pTerms.chi.sq / anovatab$pTerms.df
 			Fname <- 'F'
+			df <- anovatab$pTerms.df
 		} else {
 			if (is.mer) {
 				anovatab <- car::Anova(bm@model,type=3,test='Chisq')
@@ -316,6 +317,7 @@ fit.buildmer <- function (t,formula,data,family,timepoints,buildmerControl,nperm
 					Fname <- 'Chisq'
 				}
 			}
+			df <- anovatab$Df
 		}
 		names(Fvals) <- rownames(anovatab)
 		if (length(Fvals) < length(terms)) { #rank-deficiency
@@ -323,8 +325,8 @@ fit.buildmer <- function (t,formula,data,family,timepoints,buildmerControl,nperm
 			Fvals[missing] <- NA
 			Fvals <- Fvals[names(terms)]
 		}
-		df <- data.frame(factor=unname(terms),LRT=unname(LRT),F=unname(Fvals))
-		colnames(df)[3] <- Fname
+		df <- data.frame(factor=unname(terms),df=df,LRT=unname(LRT),F=unname(Fvals))
+		colnames(df)[4] <- Fname
 		list(terms=terms,perms=perms,df=df)
 	}
 }
