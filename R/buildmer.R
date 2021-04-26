@@ -83,7 +83,7 @@ clusterperm.lmer <- function (formula,data=NULL,family=gaussian(),weights=NULL,o
 		errfun <- function (e) {
 			# error in permutation-test function, return an empty result for this timepoint
 			warning(e)
-			data.frame(factor=NA,p=NA)
+			data.frame(Factor=NA,p=NA)
 		}
 		ix <- timepoints == t
 		data <- data[ix,]
@@ -106,18 +106,18 @@ clusterperm.lmer <- function (formula,data=NULL,family=gaussian(),weights=NULL,o
 
 	df$p <- df$cluster_mass <- df$cluster <- NA
 	# We need to invert the double-nested list from perm$time$factor to perm$factor$time
-	for (x in unique(df$factor)) {
+	for (x in unique(df$Factor)) {
 		this.factor <- lapply(perms,`[[`,x) #all timepoints for this one factor
 		df.LRT <- max(sapply(this.factor,function (x) x$df),na.rm=TRUE) #these will all be the same (because they are the same model comparison and these are ndf), except possibly in cases of rank-deficiency, hence why max is correct
 		thresh <- stats::qchisq(.95,df.LRT)
 		samp   <- sapply(this.factor,function (x) c(x$LRT,x$perms)) #columns are time, rows are samples
 		p      <- apply(samp,2,function (x) sum(x[-1] >= x[1],na.rm=TRUE) / sum(!is.na(x)))
 		stat   <- if (has.series) permuco::compute_clustermass(samp,thresh,sum,'greater')$main else NA
-		df[df$factor == x,c('p','cluster_mass','p.cluster_mass','cluster')] <- c(p,stat)
+		df[df$Factor == x,c('p','cluster_mass','p.cluster_mass','cluster')] <- c(p,stat)
 	}
 
 	if (has.series) {
-		df <- cbind(df[,1],measure=as.character(dep),df[,-1])
+		df <- cbind(df[,1],Measure=as.character(dep),df[,-1])
 		colnames(df)[1] <- series.var
 	} else {
 		df[,1] <- df$cluster <- df$cluster_mass <- df$p.cluster_mass <- NULL
@@ -287,7 +287,7 @@ fit.buildmer <- function (t,formula,data,family,timepoints,buildmerControl,nperm
 			beta <- stats::coef(bm@model)
 		}
 		tname <- if (scale.est) 't' else 'z'
-		df <- data.frame(factor=unname(terms),LRT=unname(LRT),beta=unname(beta),t=unname(beta/se))
+		df <- data.frame(Factor=unname(terms),LRT=unname(LRT),beta=unname(beta),t=unname(beta/se))
 		colnames(df)[4] <- tname
 		list(terms=terms,perms=perms,df=df)
 	} else {
@@ -325,7 +325,7 @@ fit.buildmer <- function (t,formula,data,family,timepoints,buildmerControl,nperm
 			Fvals[missing] <- NA
 			Fvals <- Fvals[names(terms)]
 		}
-		df <- data.frame(factor=unname(terms),df=df,LRT=unname(LRT),F=unname(Fvals))
+		df <- data.frame(Factor=unname(terms),df=df,LRT=unname(LRT),F=unname(Fvals))
 		colnames(df)[4] <- Fname
 		list(terms=terms,perms=perms,df=df)
 	}

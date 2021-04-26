@@ -15,19 +15,19 @@ plot.permutes <- function (x,type=c('LRT','F','t','beta','w2','cluster_mass'),br
 	if (is.null(plot)) {
 		stop("Requested column in 'type' could not be found in the data")
 	}
-	x <- x[!is.na(x$factor),]
+	x <- x[!is.na(x$Factor),]
 
 	if (!is.null(sig)) {
 		x[,plot] <- ifelse(x[[sig]] < .05,x[,plot],NA)
 	}
-	x$factor <- factor(x$factor,levels=unique(x$factor)) #make sure ggplot uses the same order as the permutation model
+	x$Factor <- factor(x$Factor,levels=unique(x$Factor)) #make sure ggplot uses the same order as the permutation model
 
 	scale <- if (is.numeric(x[,2])) ggplot2::scale_x_continuous else ggplot2::scale_x_discrete
 	p <- ggplot2::ggplot(data=x,ggplot2::aes_string(x=colnames(x)[1],y=colnames(x)[2]))
 	p <- p + ggplot2::geom_tile(ggplot2::aes_string(fill=plot,color=plot)) + viridis::scale_fill_viridis(option='plasma',direction=if (plot %in% c('p','p.cluster_mass')) -1 else 1) + viridis::scale_color_viridis(option='plasma',direction=if (plot %in% c('p','p.cluster_mass')) -1 else 1)
 	p <- p + ggplot2::theme(panel.background=ggplot2::element_blank(),panel.grid.major=ggplot2::element_blank(),panel.grid.minor=ggplot2::element_blank())
 	p <- p + if (is.null(breaks)) scale(expand=c(0,0)) else scale(expand=c(0,0),breaks=breaks)
-	p <- p + if (length(unique(x$factor)) == 1) ggplot2::scale_y_discrete(expand=c(0,0)) else ggplot2::facet_wrap(~factor,ncol=1)
+	p <- p + if (length(unique(x$Factor)) == 1) ggplot2::scale_y_discrete(expand=c(0,0)) else ggplot2::facet_wrap(~Factor,ncol=1)
 	p <- p + ggplot2::xlab(colnames(x)[1]) + ggplot2::ylab(colnames(x)[2])
 	return(p)
 }

@@ -1,7 +1,7 @@
 ---
 title: "Analyzing time series data using `permu.test`"
 author: "Cesko C.\ Voeten"
-date: "21 February 2021"
+date: "26 April 2021"
 bibliography: bibliography.bib
 csl: apa.csl
 output: pdf_document
@@ -83,7 +83,7 @@ From this plot, the effect looks to be relatively robust at, indeed, the frontal
 ROI <- c('Fp1','AF3','F7','F3','FC1','FC5','C3','CP1', 'CP5','CP6','CP2','C4',
 	 'FC6','FC2','F4','F8','AF4','Fp2','Fz')
 head(perms) #what do we have?
-perms2 <- perms[perms$factor == 'Deviant' & perms$measure %in% ROI,]
+perms2 <- perms[perms$Factor == 'Deviant' & perms$Measure %in% ROI,]
 perms2$sig <- perms2$p < .05
 perms2 <- aggregate(sig ~ Time,perms2,sum)
 plot(perms2$Time,perms2$sig) #look at all windows

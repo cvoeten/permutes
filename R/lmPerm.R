@@ -70,18 +70,18 @@ permu.test <- function (formula,data,subset=NULL,type='anova',parallel=FALSE,pro
 		errfun <- function (e) {
 			# error in permutation-test function, return an empty result for this timepoint
 			warning(e)
-			data.frame(factor=NA,p=NA)
+			data.frame(Factor=NA,p=NA)
 		}
 		data <- data[timepoints == t,]
 		model <- tryCatch(fun(t,formula,data,timepoints,dots),error=errfun)
 	}
 	ret <- plyr::adply(sort(unique(timepoints)),1,wrap,fun,formula,data,timepoints,dots,.id=timepoint.var,.parallel=parallel,.progress=ifelse(parallel,'none',progress))
-	if (is.null(ret$measure)) {
-		ret <- cbind(ret[,1],measure=as.character(formula[[2]]),ret[,-1])
+	if (is.null(ret$Measure)) {
+		ret <- cbind(ret[,1],Measure=as.character(formula[[2]]),ret[,-1])
 		colnames(ret)[1] <- timepoint.var
 	}
-	ret$measure <- sub(' ?Response +','',ret$measure)
-	ret$factor <- gsub(' +$','',ret$factor)
+	ret$Measure <- sub(' ?Response +','',ret$Measure)
+	ret$Factor <- gsub(' +$','',ret$Factor)
 	class(ret) <- c('permutes','data.frame')
 	return(ret)
 }
@@ -108,8 +108,8 @@ fit.aovp <- function (t,formula,data,timepoints,dots) {
 		Fval <- MSf/MSe
 		w2 <- (SSf - dff * MSe) / (sum(SS) + MSe)
 		w2 <- pmax(w2,0)
-		data.frame(factor=factors,F=Fval,p=p,w2=w2,stringsAsFactors=FALSE)
-	},.id='measure')
+		data.frame(Factor=factors,F=Fval,p=p,w2=w2,stringsAsFactors=FALSE)
+	},.id='Measure')
 }
 
 fit.lmp <- function (t,formula,data,timepoints,dots) {
@@ -127,6 +127,6 @@ fit.lmp <- function (t,formula,data,timepoints,dots) {
 		beta <- coef[,1]
 		se <- sqrt(diag(stats::vcov(mod)))
 		p <- coef[,3]
-		data.frame(factor=factors,beta=beta,t=beta/se,p=p,stringsAsFactors=FALSE)
-	},.id='measure')
+		data.frame(Factor=factors,beta=beta,t=beta/se,p=p,stringsAsFactors=FALSE)
+	},.id='Measure')
 }
