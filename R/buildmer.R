@@ -115,7 +115,7 @@ clusterperm.lmer <- function (formula,data=NULL,family=gaussian(),weights=NULL,o
 	colnames(df)[1] <- series.var
 	attr(df,'permutations') <- results
 	class(df) <- c('permutes','data.frame')
-	df
+	return(df)
 }
 
 fit.buildmer <- function (t,formula,data,family,timepoints,buildmerControl,nperm,type,verbose) {

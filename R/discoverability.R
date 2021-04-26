@@ -31,7 +31,7 @@ clusterperm.lm <- function (formula,data=NULL,family=gaussian(),weights=NULL,off
 	mc <- match.call()
 	e <- parent.frame()
 	mc[[1]] <- clusterperm.lmer
-	eval(mc,e)
+	return(eval(mc,e))
 }
 
 #' Cluster-based permutation tests for time series data, based on generalized linear mixed-effects models or other \code{buildmer} models. This is an alias for \code{clusterperm.lmer} provided for discoverability.
@@ -100,7 +100,7 @@ perm.lm <- function (formula,data=NULL,family=gaussian(),weights=NULL,offset=NUL
 	mc <- match.call()
 	e <- parent.frame()
 	mc[[1]] <- perm.lmer
-	eval(mc,e)
+	return(eval(mc,e))
 }
 
 #' A general permutation test for mixed-effects models or other \code{buildmer} models. This is an alias for \code{perm.lmer} provided for discoverability.
@@ -119,7 +119,7 @@ perm.lm <- function (formula,data=NULL,family=gaussian(),weights=NULL,offset=NUL
 #' }
 #' @seealso perm.lmer
 #' @export
-perm.glmer <- function (...) perm.lmer(...)
+perm.glmer <- function (...) return(perm.lmer(...))
 
 #' A general permutation test for mixed-effects models or other \code{buildmer} models. This is an alias for \code{perm.lm} provided for discoverability.
 #' @param ... Arguments to be passed to \code{perm.lm}.
@@ -128,4 +128,4 @@ perm.glmer <- function (...) perm.lmer(...)
 #' \dontshow{perms <- perm.glm(Fz ~ Deviant * Session,data=MMN[MMN$Time > 200 & MMN$Time < 205,],nperm=2)}
 #' @seealso perm.lm, perm.lmer
 #' @export
-perm.glm <- function (...) perm.lm(...)
+perm.glm <- function (...) return(perm.lm(...))

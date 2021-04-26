@@ -83,7 +83,7 @@ permu.test <- function (formula,data,subset=NULL,type='anova',parallel=FALSE,pro
 	ret$measure <- sub(' ?Response +','',ret$measure)
 	ret$factor <- gsub(' +$','',ret$factor)
 	class(ret) <- c('permutes','data.frame')
-	ret
+	return(ret)
 }
 
 fit.aovp <- function (t,formula,data,timepoints,dots) {
