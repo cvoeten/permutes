@@ -260,6 +260,8 @@ fit.buildmer <- function (t,formula,data,family,timepoints,buildmerControl,nperm
 		list(perms=perms,LRT=LRT,df=df)
 	})
 	LRT <- sapply(perms,`[[`,'LRT')
+	scale.est <- !family(bm@model)$family %in% c('binomial','poisson')
+	is.mer <- inherits(bm@model,'merMod')
 	if (type == 'regression') {
 		se <- sqrt(diag(as.matrix(stats::vcov(bm@model)))) #as.matrix needed to work around 'Error in diag(vcov(bm@model)) : long vectors not supported yet: array.c:2186'
 		if (inherits(bm@model,'merMod')) {
@@ -275,7 +277,7 @@ fit.buildmer <- function (t,formula,data,family,timepoints,buildmerControl,nperm
 		} else {
 			beta <- stats::coef(bm@model)
 		}
-		tname <- if (bm@p$is.gaussian) 't' else 'z'
+		tname <- if (scale.est) 't' else 'z'
 		df <- data.frame(factor=unname(terms),LRT=unname(LRT),beta=unname(beta),t=unname(beta/se))
 		colnames(df)[4] <- tname
 		list(terms=terms,perms=perms,df=df)
@@ -285,18 +287,25 @@ fit.buildmer <- function (t,formula,data,family,timepoints,buildmerControl,nperm
 			Fvals <- anovatab$pTerms.chi.sq / anovatab$pTerms.df
 			Fname <- 'F'
 		} else {
-			test <- if (inherits(bm@model,'glm')) 'Wald' else 'Chisq'
-			anovatab <- car::Anova(bm@model,type=3,test=test)
-			if (inherits(bm@model,'merMod') || inherits(bm@model,'glm')) {
-				Fvals <- anovatab$Chisq
-				Fname <- 'Chisq'
-				if (inherits(bm@model,'lmerMod')) {
-					Fvals <- Fvals / anovatab$Df
+			if (is.mer) {
+				anovatab <- car::Anova(bm@model,type=3,test='Chisq')
+				if (scale.est) {
+					Fvals <- anovatab$Chisq / anovatab$Df
 					Fname <- 'F'
+				} else {
+					Fvals <- anovatab$Chisq
+					Fname <- 'Chisq'
 				}
 			} else {
-				Fvals <- anovatab$'F value'
-				Fname <- 'F'
+				if (scale.est) {
+					anovatab <- car::Anova(bm@model,type=3,test='F')
+					Fvals <- anovatab$F
+					Fname <- 'F'
+				} else {
+					anovatab <- car::Anova(bm@model,type=3,test='Wald')
+					Fvals <- anovatab$Chisq
+					Fname <- 'Chisq'
+				}
 			}
 		}
 		names(Fvals) <- rownames(anovatab)
