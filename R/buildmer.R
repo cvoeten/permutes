@@ -33,15 +33,6 @@ clusterperm.lmer <- function (formula,data=NULL,family=gaussian(),weights=NULL,o
 	} else {
 		pkgcheck(c('buildmer','car','permuco'))
 	}
-
-	# common errors (by me)
-	if (!'formula' %in% class(series.var)) {
-		series.var <- stats::reformulate(series.var)
-	}
-	if (!is.character(progress) && !isTRUE(parallel)) {
-		stop("Invalid 'progress' specified for non-ad-hoc parallel solution (it has to be a character string)")
-	}
-
 	dep <- if ('dep' %in% names(buildmerControl)) buildmerControl$dep else as.character(formula[2])
 	if (all(is.null(weights))) {
 		weights <- rep(1,length(data[[dep]]))
@@ -59,6 +50,9 @@ clusterperm.lmer <- function (formula,data=NULL,family=gaussian(),weights=NULL,o
 	}
 	data$.weights <- weights[ix]
 	data$.offset <- offset[ix]
+	if (!inherits(series.var,'formula')) {
+		series.var <- stats::reformulate(series.var)
+	}
 	series.var <- attr(terms(series.var),'term.labels')
 	has.series <- length(series.var)
 	if (has.series == 0) {
@@ -78,7 +72,6 @@ clusterperm.lmer <- function (formula,data=NULL,family=gaussian(),weights=NULL,o
 	if (is.function(family)) {
 		family <- family()
 	}
-
 	wrap <- function (t,fun,formula,data,family,timepoints,buildmerControl,nperm,type,verbose) {
 		errfun <- function (e) {
 			# error in permutation-test function, return an empty result for this timepoint
@@ -89,11 +82,19 @@ clusterperm.lmer <- function (formula,data=NULL,family=gaussian(),weights=NULL,o
 		data <- data[ix,]
 		model <- tryCatch(fun(t,formula,data,family,timepoints,buildmerControl,nperm,type,verbose),error=errfun)
 	}
-	if (parallel) {
-		verbose <- progress != 'none'
-		progress <- 'none'
+	if (has.series) {
+		if (isTRUE(parallel)) {
+			verbose <- progress != 'none'
+			progress <- 'none'
+		} else {
+			if (!is.character(progress)) {
+				stop("Invalid 'progress' specified for non-ad-hoc parallel solution (it has to be a character string)")
+			}
+			verbose <- FALSE
+		}
 	} else {
-		verbose <- FALSE
+		verbose <- progress
+		progress <- 'none'
 	}
 	results <- plyr::alply(sort(unique(timepoints)),1,wrap,fit.buildmer,formula,data,family,timepoints,buildmerControl,nperm,type,verbose,.parallel=parallel,.progress=progress,.inform=FALSE)
 	terms <- lapply(results,`[[`,'terms')
