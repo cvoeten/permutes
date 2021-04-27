@@ -93,7 +93,7 @@ clusterperm.lmer <- function (formula,data=NULL,family=gaussian(),weights=NULL,o
 			verbose <- FALSE
 		}
 	} else {
-		verbose <- progress
+		verbose <- if (is.logical(progress)) progress else progress != 'none'
 		progress <- 'none'
 	}
 	results <- plyr::alply(sort(unique(timepoints)),1,wrap,fit.buildmer,formula,data,family,timepoints,buildmerControl,nperm,type,verbose,.parallel=parallel,.progress=progress,.inform=FALSE)
